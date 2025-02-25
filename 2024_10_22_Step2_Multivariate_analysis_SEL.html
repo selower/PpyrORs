@@ -1,0 +1,1685 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="Sam Pring, Sarah Lower, Brian Vestal" />
+
+<meta name="date" content="2025-02-25" />
+
+<title>Step 2: Multivariate analysis</title>
+
+<script src="site_libs/header-attrs-2.29/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cerulean.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<script src="site_libs/navigation-1.1/codefolding.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+<style type="text/css">
+.code-folding-btn { margin-bottom: 4px; }
+</style>
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">P. pyralis odorant receptor evolution and expression</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li>
+  <a href="2025_01_15_Get_Exon_data_PpyrORs.html">Genomic location and exon structure analysis</a>
+</li>
+<li>
+  <a href="2024_10_16_Step1_Read_normalize_data.html">DE expression: Step 1 Normalizing the data</a>
+</li>
+<li>
+  <a href="2024_10_22_Step2_Multivariate_analysis_SEL.html">DE expression: Step 2 Investigating sources of variation</a>
+</li>
+<li>
+  <a href="2024_11_04_Step3_DE_analysis.html">DE expression: Step 3 Differential expression</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+<div class="btn-group pull-right float-right">
+<button type="button" class="btn btn-default btn-xs btn-secondary btn-sm dropdown-toggle" data-toggle="dropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span>Code</span> <span class="caret"></span></button>
+<ul class="dropdown-menu dropdown-menu-right" style="min-width: 50px;">
+<li><a id="rmd-show-all-code" href="#">Show All Code</a></li>
+<li><a id="rmd-hide-all-code" href="#">Hide All Code</a></li>
+</ul>
+</div>
+
+
+
+<h1 class="title toc-ignore">Step 2: Multivariate analysis</h1>
+<h4 class="author">Sam Pring, Sarah Lower, Brian Vestal</h4>
+<h4 class="date">2025-02-25</h4>
+
+</div>
+
+
+<div id="load-packages" class="section level1">
+<h1>Load packages</h1>
+<pre class="r"><code>#installation if necessary
+#if (!require(&quot;BiocManager&quot;, quietly = TRUE))
+#    install.packages(&quot;BiocManager&quot;)
+#if (!requireNamespace(&quot;devtools&quot;, quietly = TRUE)) {
+#  install.packages(&quot;devtools&quot;)
+#}
+
+#BiocManager::install(&quot;DESeq2&quot;)
+#BiocManager::install(&quot;tximeta&quot;)
+#install.packages(&quot;tidyselect&quot;)
+
+#loading in the data
+library(tidyverse)
+library(datapasta) # allows for copy and pasting
+library(DESeq2)
+library(SummarizedExperiment)
+library(tximeta)
+library(dplyr)
+
+#filtering and normalization
+#BiocManager::install(&quot;vsn&quot;)
+
+#library(matrixStats)
+
+#library(hexbin)
+#library(&quot;vsn&quot;)
+
+#multivariate analysis (edgeR)
+library(edgeR)
+if (!require(&quot;DT&quot;)) install.packages(&quot;DT&quot;); library(DT) # for making interactive tables
+if (!require(&quot;plotly&quot;)) install.packages(&quot;plotly&quot;); library(plotly) # for making interactive plots
+if (!require(&quot;gt&quot;)) install.packages(&quot;gt&quot;); library(gt) # A layered &#39;grammar of tables&#39; - think ggplot, but for tables
+if (!require(&quot;stargazer&quot;)) install.packages(&quot;stargazer&quot;); library(stargazer)
+if (!require(&quot;rgl&quot;)) install.packages(&quot;rgl&quot;); library(rgl)
+if (!require(&quot;dendextend&quot;)) install.packages(&quot;dendextend&quot;); library(dendextend) # A way to customize dendrograms to make more complicated visualizations
+if (!require(&quot;ggpattern&quot;)) install.packages(&quot;ggpattern&quot;); library(ggpattern)
+if (!require(&quot;data.table&quot;)) install.packages(&quot;data.table&quot;); library(data.table)
+
+#making pretty figs
+#devtools::install_github(&quot;thomasp85/patchwork&quot;)
+library(patchwork)
+library(ggplot2)
+library(cowplot)
+
+#Check for necessary packages - example cod for making this prettier
+#list.of.packages &lt;- c(&quot;ggplot2&quot;, 
+#                      &quot;tidyr&quot;,
+#                      &quot;dplyr&quot;,
+#                      &quot;Hmisc&quot;,
+#                      &quot;qqplotr&quot;,
+#                      &quot;ggthemes&quot;,
+#                      &quot;fabricatr&quot;,
+#                      &quot;gridExtra&quot;,
+#                      &quot;grid&quot;,
+#                      &quot;kableExtra&quot;,
+#                      &quot;sjPlot&quot;,
+#                      &quot;cowplot&quot;,
+#                      &quot;ggpubr&quot;,
+#                      &quot;patchwork&quot;,
+#                      &quot;magick&quot;, #so you can use the savekable function
+#                      &quot;webshot&quot;, #so you can use the savekable function
+#                      &quot;lme4&quot;,
+#                      &quot;RcppEigen&quot;)
+
+#should install packages that you don&#39;t have
+#new.packages &lt;- list.of.packages[!(list.of.packages %in% installed.packages()[,&quot;Package&quot;])]
+#if(length(new.packages)) install.packages(new.packages)
+
+#Load the package that contains the Cox Propotional Hazard Function
+#library(&quot;)</code></pre>
+<hr />
+</div>
+<div id="clear-workspace" class="section level1">
+<h1>Clear workspace</h1>
+<pre class="r"><code>rm(list = ls())</code></pre>
+<hr />
+</div>
+<div id="read-in-data" class="section level1">
+<h1>Read in data</h1>
+<ul>
+<li>Gene-level analysis</li>
+</ul>
+<div id="read-in-sample-metadata" class="section level3">
+<h3>Read in sample metadata</h3>
+<pre class="r"><code>#read in sample metadata
+meta &lt;- read.delim(&quot;study_design.txt&quot;, header = TRUE, as.is = TRUE)
+
+#make the SAMPLE column the rownames
+rownames(meta) &lt;- meta$SAMPLE
+
+#add a names column (for lmerSeq later)
+meta$names &lt;- meta$SAMPLE
+
+#capture sample labels from the design study file
+sampleLabels &lt;- meta$SAMPLE</code></pre>
+</div>
+<div id="import-variance-stabilized-data" class="section level3">
+<h3>Import variance-stabilized data</h3>
+<pre class="r"><code>vst_expr &lt;- read_tsv(&quot;./variance_stabilized_counts_2025_02_20.tsv&quot;)</code></pre>
+</div>
+<div id="import-gene-annotations" class="section level3">
+<h3>Import gene annotations</h3>
+<pre class="r"><code>#get annotations for transcripts by loading file from ncbi ---- EDITED TO MATCH ORs ADDED FROM Mitchell&#39;s ANNOTATION----
+annotation_file &lt;- (&quot;Ppyr_annotations_ORmodified_2025_02_20.tsv&quot;)
+
+#Tx &lt;- read_tsv(annotation_file)
+Tx &lt;- read_tsv(annotation_file, col_names = c(&quot;target_id&quot;, &quot;gene_name&quot;, &quot;name&quot;, &quot;PpyrOR&quot;), col_types = &quot;cccc&quot;)
+
+Tx &lt;- as_tibble(Tx)
+
+#transcript ID needs to be the first column in the dataframe
+Tx &lt;- dplyr::select(Tx, &quot;target_id&quot;, &quot;gene_name&quot;)</code></pre>
+</div>
+</div>
+<div id="multivariate-analysis-checking-sources-of-variation"
+class="section level1 tabset">
+<h1 class="tabset">Multivariate analysis: Checking sources of
+variation</h1>
+<p>Multivariate analysis will allow us to explore sources of variation
+in the data.</p>
+<p>We want to explore:</p>
+<ul>
+<li><em>Technical sources of variation</em>
+<ul>
+<li>Does the <strong>machine</strong> a sample was run on matter?</li>
+<li>What about the particular <strong>run</strong>?</li>
+<li>What about the <strong>combo of run and lane</strong>?</li>
+</ul></li>
+</ul>
+<p><em>Note: “run” and “machine” are confounded - only need to use one
+of these variables</em></p>
+<ul>
+<li><em>Biological sources of variation</em>
+<ul>
+<li>What about <strong>tissue</strong>? - we hope that this is a major
+source of variation</li>
+<li>What about <strong>sex</strong>? - we think that this will also be a
+source of variation</li>
+<li>What about <strong>collection date</strong> - do fireflies collected
+on different dates have different expression?</li>
+<li>What about <strong>preservation date</strong> - do fireflies
+preserved in RNAlater on different dates have different expression?</li>
+<li>What about the <strong>time that samples were preserved</strong> -
+does it matter?</li>
+<li>What about the <strong>combo of date and time</strong>?</li>
+<li>What about the <strong>individual</strong>? We would expect some
+differences in baseline among individuals</li>
+<li>What about if a specimen was first <strong>used for SPME</strong>
+before preservation (exposed to CO2)? That could affect its gene
+expression. - only 1 used for SPME</li>
+<li>What about <strong>how long the specimen was in captivity</strong>
+before preservation? Perhaps longer in captivity would change gene
+expression profile?</li>
+</ul></li>
+</ul>
+<pre class="r"><code>machine &lt;- meta$MACHINE
+machine &lt;- factor(machine)
+
+run &lt;- meta$RUN
+run &lt;- factor(run)
+
+run_lane &lt;- meta$RUN_LANE_COMBO
+run_lane &lt;- factor(run_lane)
+
+tissue &lt;- meta$TISSUE
+tissue &lt;- factor(tissue)
+
+sex &lt;- meta$SEX
+sex &lt;- factor(sex)
+
+collection_date &lt;- meta$DATE_COLLECTED
+collection_date &lt;- factor(collection_date)
+
+preservation_date &lt;- meta$DATE_PRESERVED
+preservation_date &lt;- factor(preservation_date)
+
+time_preserved &lt;- as.character(meta$TIME_PRESERVED)
+time_preserved &lt;- factor(time_preserved)
+
+date_by_time_preserved &lt;- meta$DATE_BY_TIME_PRESERVED
+date_by_time_preserved &lt;- factor(date_by_time_preserved)
+
+individual &lt;- meta$INDIVIDUAL
+individual &lt;- factor(individual)
+
+spme &lt;- meta$SPME_USE
+spme &lt;- factor(spme)
+
+captivity &lt;- meta$CAPTIVE_DURATION_hrs
+captivity &lt;- factor(captivity)</code></pre>
+<p>Then, perform some multivariate analyses:</p>
+<div id="hierarchichal-clustering" class="section level2">
+<h2>Hierarchichal clustering</h2>
+<pre class="r"><code>#convert vst_expr to a matrix for pca
+vst_expr.m &lt;- as.matrix(vst_expr[,1:ncol(vst_expr)-1])
+
+
+#change sample names to include sex - helps with visualization later
+colnames(vst_expr.m) &lt;- c(&quot;SEL534ant (M)&quot;, &quot;SEL534BL (M)&quot;, &quot;SEL535ant (M)&quot;, &quot;SEL535BL (M)&quot;, &quot;SEL536ant (M)&quot;, &quot;SEL536BL (M)&quot;, &quot;SEL543ant (M)&quot;, &quot;SEL543BL (M)&quot;, &quot;SEL562ant (F)&quot;,  &quot;SEL562BL (F)&quot;, &quot;SEL627ant (F)&quot;, &quot;SEL627BL (F)&quot;, &quot;SEL672ant (F)&quot;, &quot;SEL672BL (F)&quot;) 
+
+#hierarchical clustering can only work on a data matrix, not a data frame
+distance &lt;- dist(t(vst_expr.m), method = &quot;maximum&quot;) #other distance methods are &quot;euclidean&quot;, maximum&quot;, &quot;manhattan&quot;, &quot;canberra&quot;, &quot;binary&quot; or &quot;minkowski&quot;
+clusters &lt;- hclust(distance, method = &quot;average&quot;) #other agglomeration methods are &quot;ward.D&quot;, &quot;ward.D2&quot;, &quot;single&quot;, &quot;complete&quot;, &quot;average&quot;, &quot;mcquitty&quot;, &quot;median&quot;, or &quot;centroid&quot;
+dend &lt;- as.dendrogram(clusters) # Assign the dendrogram so we can edit it
+
+#pdf(&quot;hierarchical_clustering_dendrogram_SEL_2025_01_15.pdf&quot;)
+plot(clusters, labels=labels(dend))</code></pre>
+<p><img src="2024_10_22_Step2_Multivariate_analysis_SEL_files/figure-html/hierarchical%20clustering-1.png" width="672" /></p>
+<pre class="r"><code>#dev.off()</code></pre>
+<ul>
+<li>Clustering doesn’t show major groupings by tissue or sex, as
+expected. Maybe PCA can help disentangle this.</li>
+</ul>
+<hr />
+</div>
+<div id="principal-component-analysis-pca" class="section level2">
+<h2>Principal component analysis (PCA)</h2>
+<div id="calculate-the-principal-components" class="section level3">
+<h3>Calculate the principal components</h3>
+<pre class="r"><code>pca.res &lt;- prcomp(t(vst_expr.m), scale.=F, retx=T)
+#look at the PCA result (pca.res) that you just created
+
+summary(pca.res) # Prints variance summary for all principal components.</code></pre>
+<pre><code>## Importance of components:
+##                           PC1     PC2      PC3      PC4      PC5      PC6
+## Standard deviation     36.363 18.2681 16.38221 13.93393 13.52430 13.16072
+## Proportion of Variance  0.456  0.1151  0.09255  0.06695  0.06307  0.05973
+## Cumulative Proportion   0.456  0.5710  0.66359  0.73054  0.79361  0.85334
+##                             PC7     PC8     PC9    PC10    PC11    PC12    PC13
+## Standard deviation     11.97799 9.75742 7.30921 6.58057 5.71987 5.52969 5.15912
+## Proportion of Variance  0.04947 0.03283 0.01842 0.01493 0.01128 0.01054 0.00918
+## Cumulative Proportion   0.90281 0.93564 0.95406 0.96900 0.98028 0.99082 1.00000
+##                             PC14
+## Standard deviation     1.588e-13
+## Proportion of Variance 0.000e+00
+## Cumulative Proportion  1.000e+00</code></pre>
+<pre class="r"><code>#some useful tools for looking at the data
+#pca.res$rotation #$rotation shows you how much each gene influenced each PC (called &#39;scores&#39;)
+#pca.res$x # &#39;x&#39; shows you how much each sample influenced each PC (called &#39;loadings&#39;)
+#note that these have a magnitude and a direction (this is the basis for making a PCA plot)
+
+#pdf(&quot;screeplot_2025_01_15.pdf&quot;)
+require(graphics)
+#plot(pca.res) #This is the same as screeplot()
+screeplot(pca.res) # A screeplot is a standard way to view eigenvalues for each PCA</code></pre>
+<p><img src="2024_10_22_Step2_Multivariate_analysis_SEL_files/figure-html/calc%20PCA-1.png" width="672" /></p>
+<pre class="r"><code>#dev.off()</code></pre>
+<ul>
+<li>The screeplot output shows the amount of variance attributed to each
+principal component (PC). The output shows for the top 10 PCs.</li>
+<li>From the table,
+<ul>
+<li><strong>PC1</strong> accounts for 45.6% of the variance in our
+data.</li>
+<li><strong>PC2</strong> for 11.5%.</li>
+<li><strong>PC1</strong> accounts for more than double the variance
+caused by any other PC.</li>
+</ul></li>
+</ul>
+<hr />
+</div>
+</div>
+<div id="visualize-the-pca" class="section level2 tabset">
+<h2 class="tabset">Visualize the PCA</h2>
+<pre class="r"><code>#get the variance percentages
+pc.var &lt;- pca.res$sdev^2 # sdev^2 captures these eigenvalues from the PCA result
+pc.per &lt;- round(pc.var/sum(pc.var)*100, 1) # we can then use these eigenvalues to calculate the percentage variance explained by each PC
+
+#get PCA data as a tibble that can graph
+pca.res.df &lt;- as_tibble(pca.res$x)
+pca.res.df$samplename &lt;- rownames(pca.res$x)
+
+#write_csv(pca.res.df, &quot;PCA_loadings_table_2025_02_20.csv&quot;)</code></pre>
+<div id="pc1-vs-pc2" class="section level3">
+<h3>PC1 vs PC2</h3>
+<div id="major-experimental-factors-vs-pcs-1-2-tissue-sex"
+class="section level4">
+<h4>Major experimental factors vs PCs 1 &amp; 2: tissue, sex</h4>
+<pre class="r"><code>#Plot PC1 vs PC2
+
+gg_color_hue &lt;- function(n) {
+  hues = seq(15, 375, length = n + 1)
+  hcl(h = hues, l = 65, c = 100)[1:n]
+}
+
+n = 7
+cols = gg_color_hue(n)
+
+ggplot(pca.res.df, aes(x=PC1, y=PC2, fill = tissue, color = individual, shape = sex)) +
+  geom_point(size = 4, stroke = 1.5) +
+  xlab(paste0(&quot;PC1 (&quot;,pc.per[1],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC2 (&quot;,pc.per[2],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(21,24), labels = c(&quot;female&quot;, &quot;male&quot;)) +
+  scale_fill_manual(values = c(&quot;gray31&quot;, &quot;white&quot;), labels = c(&quot;antenna&quot;, &quot;leg&quot;)) +
+  guides(
+    fill = guide_legend(title = &quot;Tissue&quot;, override.aes=list(shape = 21)), 
+    shape = guide_legend(title = &quot;Sex&quot;),
+    color = guide_legend(title = &quot;Individual&quot;))</code></pre>
+<p><img src="2024_10_22_Step2_Multivariate_analysis_SEL_files/figure-html/PC1%20vs%20PC2%20obvi%20associated-1.png" width="672" /></p>
+<pre class="r"><code>#ggsave(&quot;PCA_plot_ind_tissue_sex_2025_01_15.png&quot;, dev=&quot;png&quot;)</code></pre>
+<ul>
+<li>PC1 correlates with tissue type as the antennae samples and the leg
+samples congregated to different ends of the plot.</li>
+<li>PC2 appears to separate sex</li>
+</ul>
+</div>
+<div
+id="everything-else-pcs-1-2-pc2-preservation-date---confounded-with-sex"
+class="section level4">
+<h4>Everything else PCs 1 &amp; 2: PC2 = preservation date? -&gt;
+confounded with sex</h4>
+<pre class="r"><code>f &lt;- ggplot(pca.res.df, aes(x=PC1, y=PC2, color = machine)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC1 (&quot;,pc.per[1],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC2 (&quot;,pc.per[2],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+h &lt;- ggplot(pca.res.df, aes(x=PC1, y=PC2, color = run_lane)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC1 (&quot;,pc.per[1],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC2 (&quot;,pc.per[2],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+i &lt;- ggplot(pca.res.df, aes(x=PC1, y=PC2, color = collection_date)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC1 (&quot;,pc.per[1],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC2 (&quot;,pc.per[2],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+j &lt;- ggplot(pca.res.df, aes(x=PC1, y=PC2, color = preservation_date)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC1 (&quot;,pc.per[1],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC2 (&quot;,pc.per[2],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+k &lt;- ggplot(pca.res.df, aes(x=PC1, y=PC2, color = time_preserved)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC1 (&quot;,pc.per[1],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC2 (&quot;,pc.per[2],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+l &lt;- ggplot(pca.res.df, aes(x=PC1, y=PC2, color = date_by_time_preserved)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC1 (&quot;,pc.per[1],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC2 (&quot;,pc.per[2],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+m &lt;- ggplot(pca.res.df, aes(x=PC1, y=PC2, color = spme)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC1 (&quot;,pc.per[1],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC2 (&quot;,pc.per[2],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+n &lt;- ggplot(pca.res.df, aes(x=PC1, y=PC2, color = captivity)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC1 (&quot;,pc.per[1],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC2 (&quot;,pc.per[2],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+plot_grid(f, h, i, j, k, l, m, n, labels = c(&#39;a&#39;, &#39;b&#39;, &#39;c&#39;, &#39;d&#39;, &#39;e&#39;, &#39;f&#39;, &#39;g&#39;, &#39;h&#39;), label_size = 12, ncol= 2, align = &quot;hv&quot;) # plot_grid() is from the cowplot package</code></pre>
+<p><img src="2024_10_22_Step2_Multivariate_analysis_SEL_files/figure-html/PC1%20vs%20PC2%20not%20obvi%20associated-1.png" width="960" /></p>
+<ul>
+<li>PC2 looks associated with preservation date (but this is confounded
+by sex)</li>
+</ul>
+<hr />
+</div>
+</div>
+<div id="pc3-vs-pc4" class="section level3">
+<h3>PC3 vs PC4</h3>
+<div id="major-experimental-factors-vs-pcs-3-4-nothing-obvious"
+class="section level4">
+<h4>Major experimental factors vs PCs 3 &amp; 4: nothing obvious</h4>
+<pre class="r"><code>#Plot PC3 vs PC4
+e &lt;- ggplot(pca.res.df, aes(x=PC3, y=PC4, fill = tissue, color = individual, shape = sex)) +
+  geom_point(size = 4, stroke = 1.5) +
+  xlab(paste0(&quot;PC3 (&quot;,pc.per[3],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC4 (&quot;,pc.per[4],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(21,24), labels = c(&quot;female&quot;, &quot;male&quot;)) +
+  scale_fill_manual(values = c(&quot;gray31&quot;, &quot;white&quot;), labels = c(&quot;antenna&quot;, &quot;leg&quot;)) +
+  guides(
+    fill = guide_legend(title = &quot;Tissue&quot;, override.aes=list(shape = 21)), 
+    shape = guide_legend(title = &quot;Sex&quot;),
+    color = guide_legend(title = &quot;Individual&quot;))
+
+e</code></pre>
+<p><img src="2024_10_22_Step2_Multivariate_analysis_SEL_files/figure-html/PC3%20vs%20PC4%20obvi%20associated-1.png" width="672" /></p>
+<ul>
+<li>Individuals are grouped-ish (so properties of the individual
+included in each)</li>
+</ul>
+</div>
+<div id="everything-else-pcs-3-4-machine" class="section level4">
+<h4>Everything else PCs 3 &amp; 4: machine?</h4>
+<pre class="r"><code>f &lt;- ggplot(pca.res.df, aes(x=PC3, y=PC4, color = machine)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC3 (&quot;,pc.per[3],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC4 (&quot;,pc.per[4],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+h &lt;- ggplot(pca.res.df, aes(x=PC3, y=PC4, color = run_lane)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC3 (&quot;,pc.per[3],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC4 (&quot;,pc.per[4],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+i &lt;- ggplot(pca.res.df, aes(x=PC3, y=PC4, color = collection_date)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC3 (&quot;,pc.per[3],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC4 (&quot;,pc.per[4],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+j &lt;- ggplot(pca.res.df, aes(x=PC3, y=PC4, color = preservation_date)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC3 (&quot;,pc.per[3],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC4 (&quot;,pc.per[4],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+k &lt;- ggplot(pca.res.df, aes(x=PC3, y=PC4, color = time_preserved)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC3 (&quot;,pc.per[3],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC4 (&quot;,pc.per[4],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+l &lt;- ggplot(pca.res.df, aes(x=PC3, y=PC4, color = date_by_time_preserved)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC3 (&quot;,pc.per[3],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC4 (&quot;,pc.per[4],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+m &lt;- ggplot(pca.res.df, aes(x=PC3, y=PC4, color = spme)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC3 (&quot;,pc.per[3],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC4 (&quot;,pc.per[4],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+n &lt;- ggplot(pca.res.df, aes(x=PC3, y=PC4, color = captivity)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC3 (&quot;,pc.per[3],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC4 (&quot;,pc.per[4],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+plot_grid(f, h, i, j, k, l, m, n, labels = c(&#39;a&#39;, &#39;b&#39;, &#39;c&#39;, &#39;d&#39;, &#39;e&#39;, &#39;f&#39;, &#39;g&#39;, &#39;h&#39;), label_size = 12, ncol= 2, align = &quot;hv&quot;) # plot_grid() is from the cowplot package</code></pre>
+<p><img src="2024_10_22_Step2_Multivariate_analysis_SEL_files/figure-html/PC3%20vs%20PC4%20not%20obvi%20associated-1.png" width="960" /></p>
+<ul>
+<li>PC3 may (?) separate machine (but overlap)</li>
+</ul>
+<hr />
+</div>
+</div>
+<div id="pc5-vs-pc6" class="section level3">
+<h3>PC5 vs PC6</h3>
+<div id="major-experimental-factors-vs-pcs-5-6-nothing-obvious"
+class="section level4">
+<h4>Major experimental factors vs PCs 5 &amp; 6: nothing obvious</h4>
+<pre class="r"><code>f &lt;- ggplot(pca.res.df, aes(x=PC5, y=PC6, fill = tissue, color = individual, shape = sex)) +
+  geom_point(size = 4, stroke = 1.5) +
+  xlab(paste0(&quot;PC5 (&quot;,pc.per[5],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC6 (&quot;,pc.per[6],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(21,24), labels = c(&quot;female&quot;, &quot;male&quot;)) +
+  scale_fill_manual(values = c(&quot;gray31&quot;, &quot;white&quot;), labels = c(&quot;antenna&quot;, &quot;leg&quot;)) +
+  guides(
+    fill = guide_legend(title = &quot;Tissue&quot;, override.aes=list(shape = 21)), 
+    shape = guide_legend(title = &quot;Sex&quot;),
+    color = guide_legend(title = &quot;Individual&quot;))
+
+f</code></pre>
+<p><img src="2024_10_22_Step2_Multivariate_analysis_SEL_files/figure-html/PC5%20vs%20PC6%20obvi%20associated-1.png" width="672" /></p>
+<ul>
+<li>Individuals group together-ish - so properties of individuals</li>
+</ul>
+</div>
+<div id="everything-else-pcs-5-6-nothing-obvious"
+class="section level4">
+<h4>Everything else PCs 5 &amp; 6: nothing obvious</h4>
+<pre class="r"><code>f &lt;- ggplot(pca.res.df, aes(x=PC5, y=PC6, color = machine)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC5 (&quot;,pc.per[5],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC6 (&quot;,pc.per[6],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+h &lt;- ggplot(pca.res.df, aes(x=PC5, y=PC6, color = run_lane)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC5 (&quot;,pc.per[5],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC6 (&quot;,pc.per[6],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+i &lt;- ggplot(pca.res.df, aes(x=PC5, y=PC6, color = collection_date)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC5 (&quot;,pc.per[5],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC6 (&quot;,pc.per[6],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+j &lt;- ggplot(pca.res.df, aes(x=PC5, y=PC6, color = preservation_date)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC5 (&quot;,pc.per[5],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC6 (&quot;,pc.per[6],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+k &lt;- ggplot(pca.res.df, aes(x=PC5, y=PC6, color = time_preserved)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC5 (&quot;,pc.per[5],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC6 (&quot;,pc.per[6],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+l &lt;- ggplot(pca.res.df, aes(x=PC5, y=PC6, color = date_by_time_preserved)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC5 (&quot;,pc.per[5],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC6 (&quot;,pc.per[6],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+m &lt;- ggplot(pca.res.df, aes(x=PC5, y=PC6, color = spme)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC5 (&quot;,pc.per[5],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC6 (&quot;,pc.per[6],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+n &lt;- ggplot(pca.res.df, aes(x=PC5, y=PC6, color = captivity)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC5 (&quot;,pc.per[5],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC6 (&quot;,pc.per[6],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+plot_grid(f, h, i, j, k, l, m, n, labels = c(&#39;a&#39;, &#39;b&#39;, &#39;c&#39;, &#39;d&#39;, &#39;e&#39;, &#39;f&#39;, &#39;g&#39;, &#39;h&#39;), label_size = 12, ncol= 2, align = &quot;hv&quot;) # plot_grid() is from the cowplot package</code></pre>
+<p><img src="2024_10_22_Step2_Multivariate_analysis_SEL_files/figure-html/PC5%20vs%20PC6%20not%20obvi%20associated-1.png" width="960" /></p>
+<ul>
+<li>Nothing obvious</li>
+</ul>
+<hr />
+</div>
+</div>
+<div id="pc7-vs-pc8" class="section level3">
+<h3>PC7 vs PC8</h3>
+<div id="major-experimental-factors-vs-pcs-7-8-nothing-obvious"
+class="section level4">
+<h4>Major experimental factors vs PCs 7 &amp; 8: nothing obvious</h4>
+<pre class="r"><code>g &lt;- ggplot(pca.res.df, aes(x=PC7, y=PC8, fill = tissue, color = individual, shape = sex)) +
+  geom_point(size = 4, stroke = 1.5) +
+  xlab(paste0(&quot;PC7 (&quot;,pc.per[7],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC8 (&quot;,pc.per[8],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(21,24), labels = c(&quot;female&quot;, &quot;male&quot;)) +
+  scale_fill_manual(values = c(&quot;gray31&quot;, &quot;white&quot;), labels = c(&quot;antenna&quot;, &quot;leg&quot;)) +
+  guides(
+    fill = guide_legend(title = &quot;Tissue&quot;, override.aes=list(shape = 21)), 
+    shape = guide_legend(title = &quot;Sex&quot;),
+    color = guide_legend(title = &quot;Individual&quot;))
+
+g</code></pre>
+<p><img src="2024_10_22_Step2_Multivariate_analysis_SEL_files/figure-html/PC7%20vs%20PC8%20obvi%20associated-1.png" width="672" /></p>
+</div>
+<div id="everything-else-pcs-7-8-nothing-obvious"
+class="section level4 unnumbered">
+<h4 class="unnumbered">Everything else PCs 7 &amp; 8: nothing
+obvious</h4>
+<pre class="r"><code>f &lt;- ggplot(pca.res.df, aes(x=PC7, y=PC8, color = machine)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC7 (&quot;,pc.per[7],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC8 (&quot;,pc.per[8],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+h &lt;- ggplot(pca.res.df, aes(x=PC7, y=PC8, color = run_lane)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC7 (&quot;,pc.per[7],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC8 (&quot;,pc.per[8],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+i &lt;- ggplot(pca.res.df, aes(x=PC7, y=PC8, color = collection_date)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC7 (&quot;,pc.per[7],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC8 (&quot;,pc.per[8],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+j &lt;- ggplot(pca.res.df, aes(x=PC7, y=PC8, color = preservation_date)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC7 (&quot;,pc.per[7],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC8 (&quot;,pc.per[8],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+k &lt;- ggplot(pca.res.df, aes(x=PC7, y=PC8, color = time_preserved)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC7 (&quot;,pc.per[7],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC8 (&quot;,pc.per[8],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+l &lt;- ggplot(pca.res.df, aes(x=PC7, y=PC8, color = date_by_time_preserved)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC7 (&quot;,pc.per[7],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC8 (&quot;,pc.per[8],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+m &lt;- ggplot(pca.res.df, aes(x=PC7, y=PC8, color = spme)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC7 (&quot;,pc.per[7],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC8 (&quot;,pc.per[8],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+n &lt;- ggplot(pca.res.df, aes(x=PC7, y=PC8, color = captivity)) +
+  geom_point(size = 4) +
+  xlab(paste0(&quot;PC7 (&quot;,pc.per[7],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC8 (&quot;,pc.per[8],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+plot_grid(f, h, i, j, k, l, m, n, labels = c(&#39;a&#39;, &#39;b&#39;, &#39;c&#39;, &#39;d&#39;, &#39;e&#39;, &#39;f&#39;, &#39;g&#39;, &#39;h&#39;), label_size = 12, ncol= 2, align = &quot;hv&quot;) # plot_grid() is from the cowplot package</code></pre>
+<p><img src="2024_10_22_Step2_Multivariate_analysis_SEL_files/figure-html/PC7%20vs%20PC8%20not%20obvi%20associated-1.png" width="960" /></p>
+<ul>
+<li>Nothing obvious</li>
+</ul>
+<hr />
+</div>
+</div>
+</div>
+<div id="pca-small-multiples-charts" class="section level2 tabset">
+<h2 class="tabset">PCA ‘small multiples’ charts</h2>
+<p>This is another way to view PCA laodings to understand impact of each
+sample on each principal component</p>
+<div id="tissue" class="section level3">
+<h3>Tissue</h3>
+<pre class="r"><code>pca.res.df &lt;- pca.res$x[,1:14] %&gt;% # note that this is the first time you&#39;ve seen the &#39;pipe&#39; operator from the magrittr package
+              as_tibble() %&gt;%
+              add_column(sample = sampleLabels,
+                          group = tissue)
+
+pca.pivot &lt;- pivot_longer(pca.res.df, # dataframe to be pivoted
+                          cols = PC1:PC14, # column names to be stored as a SINGLE variable
+                          names_to = &quot;PC&quot;, # name of that new variable (column)
+                          values_to = &quot;loadings&quot;) # name of new variable (column) storing all the values (data)
+pca.pivot$PC &lt;- factor(pca.pivot$PC, levels = c(&quot;PC1&quot;, &quot;PC2&quot;, &quot;PC3&quot;, &quot;PC4&quot;, &quot;PC5&quot;, &quot;PC6&quot;, &quot;PC7&quot;, &quot;PC8&quot;, &quot;PC9&quot;, &quot;PC10&quot;, &quot;PC11&quot;, &quot;PC12&quot;, &quot;PC13&quot;, &quot;PC14&quot;))
+#Needed to change the PC column to factors so that the order of the small multiples plot is the correct. If did not do this, the order would be alphanumerical.
+
+ggplot(pca.pivot) +
+  aes(x=sample, y=loadings, fill=group) + # you could iteratively &#39;paint&#39; different covariates onto this plot using the &#39;fill&#39; aes
+  geom_bar(stat=&quot;identity&quot;) +
+  facet_wrap(~PC) +
+  labs(title=&quot;PCA &#39;small multiples&#39; plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+  theme_bw() +
+  coord_flip()</code></pre>
+<p><img src="2024_10_22_Step2_Multivariate_analysis_SEL_files/figure-html/tissue%20small%20multiples-1.png" width="672" /></p>
+<ul>
+<li>Looking at the loadings, we can say with confidence that PC1 is
+tissue!</li>
+</ul>
+<hr />
+</div>
+<div id="sex" class="section level3">
+<h3>Sex</h3>
+<pre class="r"><code>pca.res.df &lt;- pca.res$x[,1:14] %&gt;% # note that this is the first time you&#39;ve seen the &#39;pipe&#39; operator from the magrittr package
+  as_tibble() %&gt;%
+  add_column(sample = sampleLabels,
+             group = sex)
+
+pca.pivot &lt;- pivot_longer(pca.res.df, # dataframe to be pivoted
+                          cols = PC1:PC14, # column names to be stored as a SINGLE variable
+                          names_to = &quot;PC&quot;, # name of that new variable (column)
+                          values_to = &quot;loadings&quot;) # name of new variable (column) storing all the values (data)
+pca.pivot$PC &lt;- factor(pca.pivot$PC, levels = c(&quot;PC1&quot;, &quot;PC2&quot;, &quot;PC3&quot;, &quot;PC4&quot;, &quot;PC5&quot;, &quot;PC6&quot;, &quot;PC7&quot;, &quot;PC8&quot;, &quot;PC9&quot;, &quot;PC10&quot;, &quot;PC11&quot;, &quot;PC12&quot;, &quot;PC13&quot;, &quot;PC14&quot;))
+#Needed to change the PC column to factors so that the order of the small multiples plot is the correct. If did not do this, the order would be alphanumerical.
+
+ggplot(pca.pivot) +
+  aes(x=sample, y=loadings, fill=group) + # you could iteratively &#39;paint&#39; different covariates onto this plot using the &#39;fill&#39; aes
+  geom_bar(stat=&quot;identity&quot;) +
+  facet_wrap(~PC) +
+  labs(title=&quot;PCA &#39;small multiples&#39; plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+  theme_bw() +
+  coord_flip()</code></pre>
+<p><img src="2024_10_22_Step2_Multivariate_analysis_SEL_files/figure-html/sex%20small%20multiples-1.png" width="672" /></p>
+<ul>
+<li>Looking at the loadings, PC2 looks like sex, but is confounded with
+preservation date.</li>
+</ul>
+<hr />
+</div>
+<div id="machinerun" class="section level3">
+<h3>Machine/Run</h3>
+<pre class="r"><code>#do PCA small multiples for run
+#nothing matches for run
+pca.res.df &lt;- pca.res$x[,1:14] %&gt;% # note that this is the first time you&#39;ve seen the &#39;pipe&#39; operator from the magrittr package
+  as_tibble() %&gt;%
+  add_column(sample = sampleLabels,
+             group = run)
+
+pca.pivot &lt;- pivot_longer(pca.res.df, # dataframe to be pivoted
+                          cols = PC1:PC14, # column names to be stored as a SINGLE variable
+                          names_to = &quot;PC&quot;, # name of that new variable (column)
+                          values_to = &quot;loadings&quot;) # name of new variable (column) storing all the values (data)
+pca.pivot$PC &lt;- factor(pca.pivot$PC, levels = c(&quot;PC1&quot;, &quot;PC2&quot;, &quot;PC3&quot;, &quot;PC4&quot;, &quot;PC5&quot;, &quot;PC6&quot;, &quot;PC7&quot;, &quot;PC8&quot;, &quot;PC9&quot;, &quot;PC10&quot;, &quot;PC11&quot;, &quot;PC12&quot;, &quot;PC13&quot;, &quot;PC14&quot;))
+#Needed to change the PC column to factors so that the order of the small multiples plot is the correct. If did not do this, the order would be alphanumerical.
+
+ggplot(pca.pivot) +
+  aes(x=sample, y=loadings, fill=group) + # you could iteratively &#39;paint&#39; different covariates onto this plot using the &#39;fill&#39; aes
+  geom_bar(stat=&quot;identity&quot;) +
+  facet_wrap(~PC) +
+  labs(title=&quot;PCA &#39;small multiples&#39; plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+  theme_bw() +
+  coord_flip()</code></pre>
+<p><img src="2024_10_22_Step2_Multivariate_analysis_SEL_files/figure-html/run%20small%20multiples-1.png" width="672" /></p>
+<hr />
+</div>
+<div id="runxlane-combo" class="section level3">
+<h3>Runxlane combo</h3>
+<pre class="r"><code>#not enough data
+pca.res.df &lt;- pca.res$x[,1:14] %&gt;% # note that this is the first time you&#39;ve seen the &#39;pipe&#39; operator from the magrittr package
+  as_tibble() %&gt;%
+  add_column(sample = sampleLabels,
+             group = run_lane)
+pca.pivot$PC &lt;- factor(pca.pivot$PC, levels = c(&quot;PC1&quot;, &quot;PC2&quot;, &quot;PC3&quot;, &quot;PC4&quot;, &quot;PC5&quot;, &quot;PC6&quot;, &quot;PC7&quot;, &quot;PC8&quot;, &quot;PC9&quot;, &quot;PC10&quot;, &quot;PC11&quot;, &quot;PC12&quot;, &quot;PC13&quot;, &quot;PC14&quot;))
+#Needed to change the PC column to factors so that the order of the small multiples plot is the correct. If did not do this, the order would be alphanumerical.
+
+pca.pivot &lt;- pivot_longer(pca.res.df, # dataframe to be pivoted
+                          cols = PC1:PC14, # column names to be stored as a SINGLE variable
+                          names_to = &quot;PC&quot;, # name of that new variable (column)
+                          values_to = &quot;loadings&quot;) # name of new variable (column) storing all the values (data)
+pca.pivot$PC &lt;- factor(pca.pivot$PC, levels = c(&quot;PC1&quot;, &quot;PC2&quot;, &quot;PC3&quot;, &quot;PC4&quot;, &quot;PC5&quot;, &quot;PC6&quot;, &quot;PC7&quot;, &quot;PC8&quot;, &quot;PC9&quot;, &quot;PC10&quot;, &quot;PC11&quot;, &quot;PC12&quot;, &quot;PC13&quot;, &quot;PC14&quot;))
+#Needed to change the PC column to factors so that the order of the small multiples plot is the correct. If did not do this, the order would be alphanumerical.
+
+ggplot(pca.pivot) +
+  aes(x=sample, y=loadings, fill=group) + # you could iteratively &#39;paint&#39; different covariates onto this plot using the &#39;fill&#39; aes
+  geom_bar(stat=&quot;identity&quot;) +
+  facet_wrap(~PC) +
+  labs(title=&quot;PCA &#39;small multiples&#39; plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+  theme_bw() +
+  coord_flip()</code></pre>
+<p><img src="2024_10_22_Step2_Multivariate_analysis_SEL_files/figure-html/runxlane%20small%20multiples-1.png" width="672" /></p>
+<hr />
+</div>
+<div id="collection-date" class="section level3">
+<h3>Collection date</h3>
+<pre class="r"><code>#maybe pC4
+pca.res.df &lt;- pca.res$x[,1:14] %&gt;% # note that this is the first time you&#39;ve seen the &#39;pipe&#39; operator from the magrittr package
+  as_tibble() %&gt;%
+  add_column(sample = sampleLabels,
+             group = collection_date)
+
+pca.pivot &lt;- pivot_longer(pca.res.df, # dataframe to be pivoted
+                          cols = PC1:PC14, # column names to be stored as a SINGLE variable
+                          names_to = &quot;PC&quot;, # name of that new variable (column)
+                          values_to = &quot;loadings&quot;) # name of new variable (column) storing all the values (data)
+pca.pivot$PC &lt;- factor(pca.pivot$PC, levels = c(&quot;PC1&quot;, &quot;PC2&quot;, &quot;PC3&quot;, &quot;PC4&quot;, &quot;PC5&quot;, &quot;PC6&quot;, &quot;PC7&quot;, &quot;PC8&quot;, &quot;PC9&quot;, &quot;PC10&quot;, &quot;PC11&quot;, &quot;PC12&quot;, &quot;PC13&quot;, &quot;PC14&quot;))
+#Needed to change the PC column to factors so that the order of the small multiples plot is the correct. If did not do this, the order would be alphanumerical.
+
+ggplot(pca.pivot) +
+  aes(x=sample, y=loadings, fill=group) + # you could iteratively &#39;paint&#39; different covariates onto this plot using the &#39;fill&#39; aes
+  geom_bar(stat=&quot;identity&quot;) +
+  facet_wrap(~PC) +
+  labs(title=&quot;PCA &#39;small multiples&#39; plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+  theme_bw() +
+  coord_flip()</code></pre>
+<p><img src="2024_10_22_Step2_Multivariate_analysis_SEL_files/figure-html/collection%20date%20small%20multiples-1.png" width="672" /></p>
+<hr />
+</div>
+<div id="preservation-date" class="section level3">
+<h3>Preservation date</h3>
+<ul>
+<li>Maybe some relation to PC2, but not clear</li>
+</ul>
+<pre class="r"><code>#nothing really
+pca.res.df &lt;- pca.res$x[,1:14] %&gt;% # note that this is the first time you&#39;ve seen the &#39;pipe&#39; operator from the magrittr package
+  as_tibble() %&gt;%
+  add_column(sample = sampleLabels,
+             group = preservation_date)
+
+pca.pivot &lt;- pivot_longer(pca.res.df, # dataframe to be pivoted
+                          cols = PC1:PC14, # column names to be stored as a SINGLE variable
+                          names_to = &quot;PC&quot;, # name of that new variable (column)
+                          values_to = &quot;loadings&quot;) # name of new variable (column) storing all the values (data)
+pca.pivot$PC &lt;- factor(pca.pivot$PC, levels = c(&quot;PC1&quot;, &quot;PC2&quot;, &quot;PC3&quot;, &quot;PC4&quot;, &quot;PC5&quot;, &quot;PC6&quot;, &quot;PC7&quot;, &quot;PC8&quot;, &quot;PC9&quot;, &quot;PC10&quot;, &quot;PC11&quot;, &quot;PC12&quot;, &quot;PC13&quot;, &quot;PC14&quot;))
+#Needed to change the PC column to factors so that the order of the small multiples plot is the correct. If did not do this, the order would be alphanumerical.
+
+ggplot(pca.pivot) +
+  aes(x=sample, y=loadings, fill=group) + # you could iteratively &#39;paint&#39; different covariates onto this plot using the &#39;fill&#39; aes
+  geom_bar(stat=&quot;identity&quot;) +
+  facet_wrap(~PC) +
+  labs(title=&quot;PCA &#39;small multiples&#39; plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+  theme_bw() +
+  coord_flip()</code></pre>
+<p><img src="2024_10_22_Step2_Multivariate_analysis_SEL_files/figure-html/preservation%20date%20small%20multiples-1.png" width="672" /></p>
+<hr />
+</div>
+<div id="preservation-time" class="section level3">
+<h3>Preservation time</h3>
+<pre class="r"><code>#not really enough samples to tell
+pca.res.df &lt;- pca.res$x[,1:14] %&gt;% # note that this is the first time you&#39;ve seen the &#39;pipe&#39; operator from the magrittr package
+  as_tibble() %&gt;%
+  add_column(sample = sampleLabels,
+             group = time_preserved)
+
+pca.pivot &lt;- pivot_longer(pca.res.df, # dataframe to be pivoted
+                          cols = PC1:PC14, # column names to be stored as a SINGLE variable
+                          names_to = &quot;PC&quot;, # name of that new variable (column)
+                          values_to = &quot;loadings&quot;) # name of new variable (column) storing all the values (data)
+pca.pivot$PC &lt;- factor(pca.pivot$PC, levels = c(&quot;PC1&quot;, &quot;PC2&quot;, &quot;PC3&quot;, &quot;PC4&quot;, &quot;PC5&quot;, &quot;PC6&quot;, &quot;PC7&quot;, &quot;PC8&quot;, &quot;PC9&quot;, &quot;PC10&quot;, &quot;PC11&quot;, &quot;PC12&quot;, &quot;PC13&quot;, &quot;PC14&quot;))
+#Needed to change the PC column to factors so that the order of the small multiples plot is the correct. If did not do this, the order would be alphanumerical.
+
+ggplot(pca.pivot) +
+  aes(x=sample, y=loadings, fill=group) + # you could iteratively &#39;paint&#39; different covariates onto this plot using the &#39;fill&#39; aes
+  geom_bar(stat=&quot;identity&quot;) +
+  facet_wrap(~PC) +
+  labs(title=&quot;PCA &#39;small multiples&#39; plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+  theme_bw() +
+  coord_flip()</code></pre>
+<p><img src="2024_10_22_Step2_Multivariate_analysis_SEL_files/figure-html/preservation%20time%20small%20multiples-1.png" width="672" /></p>
+<hr />
+</div>
+<div id="preservation-date-x-time" class="section level3">
+<h3>Preservation date x time</h3>
+<pre class="r"><code>#PC2 - seems like all females preserved in the same group!
+pca.res.df &lt;- pca.res$x[,1:14] %&gt;% # note that this is the first time you&#39;ve seen the &#39;pipe&#39; operator from the magrittr package
+  as_tibble() %&gt;%
+  add_column(sample = sampleLabels,
+             group = date_by_time_preserved)
+
+pca.pivot &lt;- pivot_longer(pca.res.df, # dataframe to be pivoted
+                          cols = PC1:PC14, # column names to be stored as a SINGLE variable
+                          names_to = &quot;PC&quot;, # name of that new variable (column)
+                          values_to = &quot;loadings&quot;) # name of new variable (column) storing all the values (data)
+pca.pivot$PC &lt;- factor(pca.pivot$PC, levels = c(&quot;PC1&quot;, &quot;PC2&quot;, &quot;PC3&quot;, &quot;PC4&quot;, &quot;PC5&quot;, &quot;PC6&quot;, &quot;PC7&quot;, &quot;PC8&quot;, &quot;PC9&quot;, &quot;PC10&quot;, &quot;PC11&quot;, &quot;PC12&quot;, &quot;PC13&quot;, &quot;PC14&quot;))
+#Needed to change the PC column to factors so that the order of the small multiples plot is the correct. If did not do this, the order would be alphanumerical.
+
+ggplot(pca.pivot) +
+  aes(x=sample, y=loadings, fill=group) + # you could iteratively &#39;paint&#39; different covariates onto this plot using the &#39;fill&#39; aes
+  geom_bar(stat=&quot;identity&quot;) +
+  facet_wrap(~PC) +
+  labs(title=&quot;PCA &#39;small multiples&#39; plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+  theme_bw() +
+  coord_flip()</code></pre>
+<p><img src="2024_10_22_Step2_Multivariate_analysis_SEL_files/figure-html/preservation%20date%20x%20time%20small%20multiples-1.png" width="672" /></p>
+<hr />
+</div>
+<div id="individual" class="section level3">
+<h3>Individual</h3>
+<ul>
+<li>Some relation to PC3 - but many of the next PCs seem like thy have
+partial association with individual</li>
+</ul>
+<pre class="r"><code>#PC3 separates individuals
+pca.res.df &lt;- pca.res$x[,1:14] %&gt;% # note that this is the first time you&#39;ve seen the &#39;pipe&#39; operator from the magrittr package
+  as_tibble() %&gt;%
+  add_column(sample = sampleLabels,
+             group = individual)
+
+pca.pivot &lt;- pivot_longer(pca.res.df, # dataframe to be pivoted
+                          cols = PC1:PC14, # column names to be stored as a SINGLE variable
+                          names_to = &quot;PC&quot;, # name of that new variable (column)
+                          values_to = &quot;loadings&quot;) # name of new variable (column) storing all the values (data)
+pca.pivot$PC &lt;- factor(pca.pivot$PC, levels = c(&quot;PC1&quot;, &quot;PC2&quot;, &quot;PC3&quot;, &quot;PC4&quot;, &quot;PC5&quot;, &quot;PC6&quot;, &quot;PC7&quot;, &quot;PC8&quot;, &quot;PC9&quot;, &quot;PC10&quot;, &quot;PC11&quot;, &quot;PC12&quot;, &quot;PC13&quot;, &quot;PC14&quot;))
+#Needed to change the PC column to factors so that the order of the small multiples plot is the correct. If did not do this, the order would be alphanumerical.
+
+ggplot(pca.pivot) +
+  aes(x=sample, y=loadings, fill=group) + # you could iteratively &#39;paint&#39; different covariates onto this plot using the &#39;fill&#39; aes
+  geom_bar(stat=&quot;identity&quot;) +
+  facet_wrap(~PC) +
+  labs(title=&quot;PCA &#39;small multiples&#39; plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+  theme_bw() +
+  coord_flip()</code></pre>
+<p><img src="2024_10_22_Step2_Multivariate_analysis_SEL_files/figure-html/individual%20small%20multiples-1.png" width="672" /></p>
+<hr />
+</div>
+<div id="spme" class="section level3">
+<h3>SPME</h3>
+<pre class="r"><code>#there was only 1
+pca.res.df &lt;- pca.res$x[,1:14] %&gt;% # note that this is the first time you&#39;ve seen the &#39;pipe&#39; operator from the magrittr package
+  as_tibble() %&gt;%
+  add_column(sample = sampleLabels,
+             group = spme)
+
+pca.pivot &lt;- pivot_longer(pca.res.df, # dataframe to be pivoted
+                          cols = PC1:PC14, # column names to be stored as a SINGLE variable
+                          names_to = &quot;PC&quot;, # name of that new variable (column)
+                          values_to = &quot;loadings&quot;) # name of new variable (column) storing all the values (data)
+pca.pivot$PC &lt;- factor(pca.pivot$PC, levels = c(&quot;PC1&quot;, &quot;PC2&quot;, &quot;PC3&quot;, &quot;PC4&quot;, &quot;PC5&quot;, &quot;PC6&quot;, &quot;PC7&quot;, &quot;PC8&quot;, &quot;PC9&quot;, &quot;PC10&quot;, &quot;PC11&quot;, &quot;PC12&quot;, &quot;PC13&quot;, &quot;PC14&quot;))
+#Needed to change the PC column to factors so that the order of the small multiples plot is the correct. If did not do this, the order would be alphanumerical.
+
+ggplot(pca.pivot) +
+  aes(x=sample, y=loadings, fill=group) + # you could iteratively &#39;paint&#39; different covariates onto this plot using the &#39;fill&#39; aes
+  geom_bar(stat=&quot;identity&quot;) +
+  facet_wrap(~PC) +
+  labs(title=&quot;PCA &#39;small multiples&#39; plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+  theme_bw() +
+  coord_flip()</code></pre>
+<p><img src="2024_10_22_Step2_Multivariate_analysis_SEL_files/figure-html/spme%20small%20multiples-1.png" width="672" /></p>
+<hr />
+</div>
+<div id="captive-duration" class="section level3 unnumbered">
+<h3 class="unnumbered">Captive duration</h3>
+<pre class="r"><code>#hard to say
+pca.res.df &lt;- pca.res$x[,1:14] %&gt;% # note that this is the first time you&#39;ve seen the &#39;pipe&#39; operator from the magrittr package
+  as_tibble() %&gt;%
+  add_column(sample = sampleLabels,
+             group = captivity)
+
+pca.pivot &lt;- pivot_longer(pca.res.df, # dataframe to be pivoted
+                          cols = PC1:PC14, # column names to be stored as a SINGLE variable
+                          names_to = &quot;PC&quot;, # name of that new variable (column)
+                          values_to = &quot;loadings&quot;) # name of new variable (column) storing all the values (data)
+pca.pivot$PC &lt;- factor(pca.pivot$PC, levels = c(&quot;PC1&quot;, &quot;PC2&quot;, &quot;PC3&quot;, &quot;PC4&quot;, &quot;PC5&quot;, &quot;PC6&quot;, &quot;PC7&quot;, &quot;PC8&quot;, &quot;PC9&quot;, &quot;PC10&quot;, &quot;PC11&quot;, &quot;PC12&quot;, &quot;PC13&quot;, &quot;PC14&quot;))
+#Needed to change the PC column to factors so that the order of the small multiples plot is the correct. If did not do this, the order would be alphanumerical.
+
+ggplot(pca.pivot) +
+  aes(x=sample, y=loadings, fill=group) + # you could iteratively &#39;paint&#39; different covariates onto this plot using the &#39;fill&#39; aes
+  geom_bar(stat=&quot;identity&quot;) +
+  facet_wrap(~PC) +
+  labs(title=&quot;PCA &#39;small multiples&#39; plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+  theme_bw() +
+  coord_flip()</code></pre>
+<p><img src="2024_10_22_Step2_Multivariate_analysis_SEL_files/figure-html/captivity%20small%20multiples-1.png" width="672" /></p>
+<hr />
+</div>
+</div>
+<div id="final-pca-plots" class="section level2 unnumbered">
+<h2 class="unnumbered">Final PCA plots</h2>
+<pre class="r"><code>ggplot(pca.res.df) +
+  aes(x=PC1, y=PC2, label=sampleLabels, shape = tissue, group=tissue) +
+  geom_point(size=4, alpha=0.5) +
+  #geom_label() +
+  stat_ellipse() +
+  xlab(paste0(&quot;PC1 (&quot;,pc.per[1],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC2 (&quot;,pc.per[2],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+  coord_fixed() +
+  theme_bw()</code></pre>
+<p><img src="2024_10_22_Step2_Multivariate_analysis_SEL_files/figure-html/final%20PCA%20plots-1.png" width="672" /></p>
+<pre class="r"><code>ggplot(pca.res.df) +
+  aes(x=PC1, y=PC2, label=sampleLabels, color = sex, group=sex) +
+  geom_point(size=4, alpha=0.5) +
+  #geom_label() +
+  stat_ellipse() +
+  xlab(paste0(&quot;PC1 (&quot;,pc.per[1],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC2 (&quot;,pc.per[2],&quot;%&quot;,&quot;)&quot;)) +
+  labs(title=&quot;PCA plot&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+  coord_fixed() +
+  theme_bw()</code></pre>
+<p><img src="2024_10_22_Step2_Multivariate_analysis_SEL_files/figure-html/final%20PCA%20plots-2.png" width="672" /></p>
+<pre class="r"><code>#plot PCs
+p &lt;- ggplot(pca.res.df, (aes(x=PC1, y=PC2))) +
+  geom_point(aes(fill=tissue, shape=sex), size=3, alpha = 0.6) +
+  xlab(paste0(&quot;PC1 (&quot;,pc.per[1],&quot;%&quot;,&quot;)&quot;)) + 
+  ylab(paste0(&quot;PC2 (&quot;,pc.per[2],&quot;%&quot;,&quot;)&quot;)) +
+  coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(21,24), labels = c(&quot;female&quot;, &quot;male&quot;)) +
+  scale_fill_manual(values=c(&quot;black&quot;, &quot;white&quot;), labels = c(&quot;antenna&quot;, &quot;leg&quot;)) +
+  guides(
+    fill = guide_legend(title = &quot;Tissue&quot;, override.aes=list(shape = 21)), 
+    shape = guide_legend(title = &quot;Sex&quot;))
+
+
+p</code></pre>
+<p><img src="2024_10_22_Step2_Multivariate_analysis_SEL_files/figure-html/final%20PCA%20plots-3.png" width="672" /></p>
+<pre class="r"><code>#ggsave(&quot;PC1_v_2_tissue_and_sex_2025_02_20.pdf&quot;, plot = p, device = &quot;pdf&quot;, width = 85, height = 60, dpi = 300, units = &quot;mm&quot;)
+#ggsave(&quot;PC1_v_2_tissue_and_sex_2025_02_20.png&quot;, device = &quot;png&quot;, width = 85, height = 60, dpi = 300, units = &quot;mm&quot;)</code></pre>
+<ul>
+<li>PC1 = tissue</li>
+<li>PC2 = sex</li>
+</ul>
+<hr />
+</div>
+</div>
+<div id="session-info" class="section level1">
+<h1>Session info</h1>
+<pre class="r"><code>sessionInfo()</code></pre>
+<pre><code>## R version 4.4.1 (2024-06-14)
+## Platform: aarch64-apple-darwin20
+## Running under: macOS Sonoma 14.7.4
+## 
+## Matrix products: default
+## BLAS:   /Library/Frameworks/R.framework/Versions/4.4-arm64/Resources/lib/libRblas.0.dylib 
+## LAPACK: /Library/Frameworks/R.framework/Versions/4.4-arm64/Resources/lib/libRlapack.dylib;  LAPACK version 3.12.0
+## 
+## locale:
+## [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+## 
+## time zone: America/New_York
+## tzcode source: internal
+## 
+## attached base packages:
+## [1] stats4    stats     graphics  grDevices utils     datasets  methods  
+## [8] base     
+## 
+## other attached packages:
+##  [1] data.table_1.16.4           ggpattern_1.1.1            
+##  [3] dendextend_1.19.0           rgl_1.3.14                 
+##  [5] stargazer_5.2.3             gt_0.11.1                  
+##  [7] plotly_4.10.4               DT_0.33                    
+##  [9] patchwork_1.3.0.9000        vsn_3.72.0                 
+## [11] hexbin_1.28.5               cowplot_1.1.3              
+## [13] edgeR_4.2.2                 limma_3.60.6               
+## [15] tximeta_1.22.1              DESeq2_1.44.0              
+## [17] SummarizedExperiment_1.34.0 Biobase_2.64.0             
+## [19] MatrixGenerics_1.16.0       matrixStats_1.4.1          
+## [21] GenomicRanges_1.56.2        GenomeInfoDb_1.40.1        
+## [23] IRanges_2.38.1              S4Vectors_0.42.1           
+## [25] BiocGenerics_0.50.0         datapasta_3.1.0            
+## [27] tximport_1.32.0             rhdf5_2.48.0               
+## [29] lubridate_1.9.4             forcats_1.0.0              
+## [31] stringr_1.5.1               dplyr_1.1.4                
+## [33] purrr_1.0.2                 readr_2.1.5                
+## [35] tidyr_1.3.1                 tibble_3.2.1               
+## [37] ggplot2_3.5.1               tidyverse_2.0.0            
+## [39] BiocManager_1.30.25        
+## 
+## loaded via a namespace (and not attached):
+##   [1] later_1.4.1              BiocIO_1.14.0            bitops_1.0-9            
+##   [4] filelock_1.0.3           preprocessCore_1.66.0    XML_3.99-0.17           
+##   [7] lifecycle_1.0.4          httr2_1.0.7              MASS_7.3-60.2           
+##  [10] lattice_0.22-6           vroom_1.6.5              ensembldb_2.28.1        
+##  [13] magrittr_2.0.3           sass_0.4.9               rmarkdown_2.29          
+##  [16] jquerylib_0.1.4          yaml_2.3.10              remotes_2.5.0           
+##  [19] httpuv_1.6.15            sessioninfo_1.2.2        pkgbuild_1.4.5          
+##  [22] DBI_1.2.3                abind_1.4-8              pkgload_1.4.0           
+##  [25] zlibbioc_1.50.0          AnnotationFilter_1.28.0  RCurl_1.98-1.16         
+##  [28] rappdirs_0.3.3           GenomeInfoDbData_1.2.12  codetools_0.2-20        
+##  [31] DelayedArray_0.30.1      xml2_1.3.6               tidyselect_1.2.1        
+##  [34] UCSC.utils_1.0.0         farver_2.1.2             viridis_0.6.5           
+##  [37] BiocFileCache_2.12.0     base64enc_0.1-3          GenomicAlignments_1.40.0
+##  [40] jsonlite_1.8.9           ellipsis_0.3.2           tools_4.4.1             
+##  [43] progress_1.2.3           Rcpp_1.0.14              glue_1.8.0              
+##  [46] gridExtra_2.3            SparseArray_1.4.8        xfun_0.50               
+##  [49] usethis_3.1.0            withr_3.0.2              fastmap_1.2.0           
+##  [52] rhdf5filters_1.16.0      digest_0.6.37            timechange_0.3.0        
+##  [55] R6_2.5.1                 mime_0.12                colorspace_2.1-1        
+##  [58] biomaRt_2.60.1           RSQLite_2.3.9            generics_0.1.3          
+##  [61] rtracklayer_1.64.0       prettyunits_1.2.0        httr_1.4.7              
+##  [64] htmlwidgets_1.6.4        S4Arrays_1.4.1           pkgconfig_2.0.3         
+##  [67] gtable_0.3.5             blob_1.2.4               XVector_0.44.0          
+##  [70] htmltools_0.5.8.1        profvis_0.4.0            ProtGenerics_1.36.0     
+##  [73] scales_1.3.0             png_0.1-8                knitr_1.49              
+##  [76] rstudioapi_0.17.1        tzdb_0.4.0               rjson_0.2.23            
+##  [79] curl_6.0.1               cachem_1.1.0             BiocVersion_3.19.1      
+##  [82] parallel_4.4.1           miniUI_0.1.1.1           AnnotationDbi_1.66.0    
+##  [85] restfulr_0.0.15          pillar_1.10.1            grid_4.4.1              
+##  [88] vctrs_0.6.5              urlchecker_1.0.1         promises_1.3.2          
+##  [91] dbplyr_2.5.0             xtable_1.8-4             evaluate_1.0.3          
+##  [94] GenomicFeatures_1.56.0   cli_3.6.3                locfit_1.5-9.10         
+##  [97] compiler_4.4.1           Rsamtools_2.20.0         rlang_1.1.4             
+## [100] crayon_1.5.3             labeling_0.4.3           affy_1.82.0             
+## [103] fs_1.6.5                 stringi_1.8.4            viridisLite_0.4.2       
+## [106] BiocParallel_1.38.0      txdbmaker_1.0.1          munsell_0.5.1           
+## [109] Biostrings_2.72.1        lazyeval_0.2.2           devtools_2.4.5          
+## [112] Matrix_1.7-0             hms_1.1.3                bit64_4.5.2             
+## [115] Rhdf5lib_1.26.0          KEGGREST_1.44.1          statmod_1.5.0           
+## [118] shiny_1.10.0             AnnotationHub_3.12.0     memoise_2.0.1           
+## [121] affyio_1.74.0            bslib_0.8.0              bit_4.5.0.1</code></pre>
+</div>
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+<script>
+$(document).ready(function () {
+  window.initializeCodeFolding("hide" === "show");
+});
+</script>
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

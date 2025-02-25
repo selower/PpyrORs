@@ -1,0 +1,1133 @@
+---
+title: 'Step 2: Multivariate analysis'
+author: "Sam Pring, Sarah Lower, Brian Vestal"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    theme: cerulean
+    toc: TRUE
+    toc_float:
+        collapsed: TRUE
+    code_folding: hide
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load packages
+```{r load libraries, message=FALSE, warning=FALSE}
+#installation if necessary
+#if (!require("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+#if (!requireNamespace("devtools", quietly = TRUE)) {
+#  install.packages("devtools")
+#}
+
+#BiocManager::install("DESeq2")
+#BiocManager::install("tximeta")
+#install.packages("tidyselect")
+
+#loading in the data
+library(tidyverse)
+library(datapasta) # allows for copy and pasting
+library(DESeq2)
+library(SummarizedExperiment)
+library(tximeta)
+library(dplyr)
+
+#filtering and normalization
+#BiocManager::install("vsn")
+
+#library(matrixStats)
+
+#library(hexbin)
+#library("vsn")
+
+#multivariate analysis (edgeR)
+library(edgeR)
+if (!require("DT")) install.packages("DT"); library(DT) # for making interactive tables
+if (!require("plotly")) install.packages("plotly"); library(plotly) # for making interactive plots
+if (!require("gt")) install.packages("gt"); library(gt) # A layered 'grammar of tables' - think ggplot, but for tables
+if (!require("stargazer")) install.packages("stargazer"); library(stargazer)
+if (!require("rgl")) install.packages("rgl"); library(rgl)
+if (!require("dendextend")) install.packages("dendextend"); library(dendextend) # A way to customize dendrograms to make more complicated visualizations
+if (!require("ggpattern")) install.packages("ggpattern"); library(ggpattern)
+if (!require("data.table")) install.packages("data.table"); library(data.table)
+
+#making pretty figs
+#devtools::install_github("thomasp85/patchwork")
+library(patchwork)
+library(ggplot2)
+library(cowplot)
+
+#Check for necessary packages - example cod for making this prettier
+#list.of.packages <- c("ggplot2", 
+#                      "tidyr",
+#                      "dplyr",
+#                      "Hmisc",
+#                      "qqplotr",
+#                      "ggthemes",
+#                      "fabricatr",
+#                      "gridExtra",
+#                      "grid",
+#                      "kableExtra",
+#                      "sjPlot",
+#                      "cowplot",
+#                      "ggpubr",
+#                      "patchwork",
+#                      "magick", #so you can use the savekable function
+#                      "webshot", #so you can use the savekable function
+#                      "lme4",
+#                      "RcppEigen")
+
+#should install packages that you don't have
+#new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+#if(length(new.packages)) install.packages(new.packages)
+
+#Load the package that contains the Cox Propotional Hazard Function
+#library(")
+```
+
+---
+
+# Clear workspace
+```{r clear workspace}
+rm(list = ls())
+```
+
+---
+
+# Read in data
+
+  + Gene-level analysis
+
+### Read in sample metadata
+```{r read in metadata}
+
+#read in sample metadata
+meta <- read.delim("study_design.txt", header = TRUE, as.is = TRUE)
+
+#make the SAMPLE column the rownames
+rownames(meta) <- meta$SAMPLE
+
+#add a names column (for lmerSeq later)
+meta$names <- meta$SAMPLE
+
+#capture sample labels from the design study file
+sampleLabels <- meta$SAMPLE
+```
+
+### Import variance-stabilized data
+```{r import vst, message = FALSE}
+vst_expr <- read_tsv("./variance_stabilized_counts_2025_02_20.tsv")
+```
+
+### Import gene annotations
+```{r import annotations}
+#get annotations for transcripts by loading file from ncbi ---- EDITED TO MATCH ORs ADDED FROM Mitchell's ANNOTATION----
+annotation_file <- ("Ppyr_annotations_ORmodified_2025_02_20.tsv")
+
+#Tx <- read_tsv(annotation_file)
+Tx <- read_tsv(annotation_file, col_names = c("target_id", "gene_name", "name", "PpyrOR"), col_types = "cccc")
+
+Tx <- as_tibble(Tx)
+
+#transcript ID needs to be the first column in the dataframe
+Tx <- dplyr::select(Tx, "target_id", "gene_name")
+```
+
+# Multivariate analysis: Checking sources of variation {.tabset}
+
+Multivariate analysis will allow us to explore sources of variation in the data.
+
+We want to explore:
+  
+  + *Technical sources of variation*
+    + Does the **machine** a sample was run on matter?
+    + What about the particular **run**?
+    + What about the **combo of run and lane**?
+  
+*Note: "run" and "machine" are confounded - only need to use one of these variables*
+
+  + *Biological sources of variation*
+    + What about **tissue**? - we hope that this is a major source of variation
+    + What about **sex**? - we think that this will also be a source of variation
+    + What about **collection date** - do fireflies collected on different dates have different expression?
+    + What about **preservation date** - do fireflies preserved in RNAlater on different dates have different expression?
+    + What about the **time that samples were preserved** - does it matter? 
+    + What about the **combo of date and time**?
+    + What about the **individual**? We would expect some differences in baseline among individuals
+    + What about if a specimen was first **used for SPME** before preservation (exposed to CO2)? That could affect its gene expression. - only 1 used for SPME
+    + What about **how long the specimen was in captivity** before preservation? Perhaps longer in captivity would change gene expression profile?
+  
+```{r isolating factors of interest}
+machine <- meta$MACHINE
+machine <- factor(machine)
+
+run <- meta$RUN
+run <- factor(run)
+
+run_lane <- meta$RUN_LANE_COMBO
+run_lane <- factor(run_lane)
+
+tissue <- meta$TISSUE
+tissue <- factor(tissue)
+
+sex <- meta$SEX
+sex <- factor(sex)
+
+collection_date <- meta$DATE_COLLECTED
+collection_date <- factor(collection_date)
+
+preservation_date <- meta$DATE_PRESERVED
+preservation_date <- factor(preservation_date)
+
+time_preserved <- as.character(meta$TIME_PRESERVED)
+time_preserved <- factor(time_preserved)
+
+date_by_time_preserved <- meta$DATE_BY_TIME_PRESERVED
+date_by_time_preserved <- factor(date_by_time_preserved)
+
+individual <- meta$INDIVIDUAL
+individual <- factor(individual)
+
+spme <- meta$SPME_USE
+spme <- factor(spme)
+
+captivity <- meta$CAPTIVE_DURATION_hrs
+captivity <- factor(captivity)
+```
+
+Then, perform some multivariate analyses:
+
+## Hierarchichal clustering
+```{r hierarchical clustering}
+
+#convert vst_expr to a matrix for pca
+vst_expr.m <- as.matrix(vst_expr[,1:ncol(vst_expr)-1])
+
+
+#change sample names to include sex - helps with visualization later
+colnames(vst_expr.m) <- c("SEL534ant (M)", "SEL534BL (M)", "SEL535ant (M)", "SEL535BL (M)", "SEL536ant (M)", "SEL536BL (M)", "SEL543ant (M)", "SEL543BL (M)", "SEL562ant (F)",  "SEL562BL (F)", "SEL627ant (F)", "SEL627BL (F)", "SEL672ant (F)", "SEL672BL (F)") 
+
+#hierarchical clustering can only work on a data matrix, not a data frame
+distance <- dist(t(vst_expr.m), method = "maximum") #other distance methods are "euclidean", maximum", "manhattan", "canberra", "binary" or "minkowski"
+clusters <- hclust(distance, method = "average") #other agglomeration methods are "ward.D", "ward.D2", "single", "complete", "average", "mcquitty", "median", or "centroid"
+dend <- as.dendrogram(clusters) # Assign the dendrogram so we can edit it
+
+#pdf("hierarchical_clustering_dendrogram_SEL_2025_01_15.pdf")
+plot(clusters, labels=labels(dend))
+#dev.off()
+```
+
+  + Clustering doesn't show major groupings by tissue or sex, as expected. Maybe PCA can help disentangle this.
+
+---
+
+## Principal component analysis (PCA)
+
+### Calculate the principal components
+```{r calc PCA}
+
+pca.res <- prcomp(t(vst_expr.m), scale.=F, retx=T)
+#look at the PCA result (pca.res) that you just created
+
+summary(pca.res) # Prints variance summary for all principal components.
+
+#some useful tools for looking at the data
+#pca.res$rotation #$rotation shows you how much each gene influenced each PC (called 'scores')
+#pca.res$x # 'x' shows you how much each sample influenced each PC (called 'loadings')
+#note that these have a magnitude and a direction (this is the basis for making a PCA plot)
+
+#pdf("screeplot_2025_01_15.pdf")
+require(graphics)
+#plot(pca.res) #This is the same as screeplot()
+screeplot(pca.res) # A screeplot is a standard way to view eigenvalues for each PCA
+#dev.off()
+```
+
+ + The screeplot output shows the amount of variance attributed to each principal component (PC). The output shows for the top 10 PCs. 
+  + From the table,
+    + **PC1** accounts for 45.6% of the variance in our data.
+    + **PC2** for 11.5%. 
+    + **PC1** accounts for more than double the variance caused by any other PC.
+
+---
+
+## Visualize the PCA {.tabset}
+```{r PCA loadings table generation}
+
+#get the variance percentages
+pc.var <- pca.res$sdev^2 # sdev^2 captures these eigenvalues from the PCA result
+pc.per <- round(pc.var/sum(pc.var)*100, 1) # we can then use these eigenvalues to calculate the percentage variance explained by each PC
+
+#get PCA data as a tibble that can graph
+pca.res.df <- as_tibble(pca.res$x)
+pca.res.df$samplename <- rownames(pca.res$x)
+
+#write_csv(pca.res.df, "PCA_loadings_table_2025_02_20.csv")
+
+```
+
+### PC1 vs PC2
+#### Major experimental factors vs PCs 1 & 2: tissue, sex
+```{r PC1 vs PC2 obvi associated}
+#Plot PC1 vs PC2
+
+gg_color_hue <- function(n) {
+  hues = seq(15, 375, length = n + 1)
+  hcl(h = hues, l = 65, c = 100)[1:n]
+}
+
+n = 7
+cols = gg_color_hue(n)
+
+ggplot(pca.res.df, aes(x=PC1, y=PC2, fill = tissue, color = individual, shape = sex)) +
+  geom_point(size = 4, stroke = 1.5) +
+  xlab(paste0("PC1 (",pc.per[1],"%",")")) + 
+  ylab(paste0("PC2 (",pc.per[2],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(21,24), labels = c("female", "male")) +
+  scale_fill_manual(values = c("gray31", "white"), labels = c("antenna", "leg")) +
+  guides(
+    fill = guide_legend(title = "Tissue", override.aes=list(shape = 21)), 
+    shape = guide_legend(title = "Sex"),
+    color = guide_legend(title = "Individual"))
+
+#ggsave("PCA_plot_ind_tissue_sex_2025_01_15.png", dev="png")
+```
+
+  + PC1 correlates with tissue type as the antennae samples and the leg samples congregated to different ends of the plot. 
+  + PC2 appears to separate sex
+
+#### Everything else PCs 1 & 2: PC2 = preservation date? -> confounded with sex
+```{r PC1 vs PC2 not obvi associated, fig.height=15, fig.width=10}
+
+f <- ggplot(pca.res.df, aes(x=PC1, y=PC2, color = machine)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC1 (",pc.per[1],"%",")")) + 
+  ylab(paste0("PC2 (",pc.per[2],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+h <- ggplot(pca.res.df, aes(x=PC1, y=PC2, color = run_lane)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC1 (",pc.per[1],"%",")")) + 
+  ylab(paste0("PC2 (",pc.per[2],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+i <- ggplot(pca.res.df, aes(x=PC1, y=PC2, color = collection_date)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC1 (",pc.per[1],"%",")")) + 
+  ylab(paste0("PC2 (",pc.per[2],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+j <- ggplot(pca.res.df, aes(x=PC1, y=PC2, color = preservation_date)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC1 (",pc.per[1],"%",")")) + 
+  ylab(paste0("PC2 (",pc.per[2],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+k <- ggplot(pca.res.df, aes(x=PC1, y=PC2, color = time_preserved)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC1 (",pc.per[1],"%",")")) + 
+  ylab(paste0("PC2 (",pc.per[2],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+l <- ggplot(pca.res.df, aes(x=PC1, y=PC2, color = date_by_time_preserved)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC1 (",pc.per[1],"%",")")) + 
+  ylab(paste0("PC2 (",pc.per[2],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+m <- ggplot(pca.res.df, aes(x=PC1, y=PC2, color = spme)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC1 (",pc.per[1],"%",")")) + 
+  ylab(paste0("PC2 (",pc.per[2],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+n <- ggplot(pca.res.df, aes(x=PC1, y=PC2, color = captivity)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC1 (",pc.per[1],"%",")")) + 
+  ylab(paste0("PC2 (",pc.per[2],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+plot_grid(f, h, i, j, k, l, m, n, labels = c('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'), label_size = 12, ncol= 2, align = "hv") # plot_grid() is from the cowplot package
+```
+
+  + PC2 looks associated with preservation date (but this is confounded by sex)
+
+---
+
+### PC3 vs PC4
+#### Major experimental factors vs PCs 3 & 4: nothing obvious
+```{r PC3 vs PC4 obvi associated}
+#Plot PC3 vs PC4
+e <- ggplot(pca.res.df, aes(x=PC3, y=PC4, fill = tissue, color = individual, shape = sex)) +
+  geom_point(size = 4, stroke = 1.5) +
+  xlab(paste0("PC3 (",pc.per[3],"%",")")) + 
+  ylab(paste0("PC4 (",pc.per[4],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(21,24), labels = c("female", "male")) +
+  scale_fill_manual(values = c("gray31", "white"), labels = c("antenna", "leg")) +
+  guides(
+    fill = guide_legend(title = "Tissue", override.aes=list(shape = 21)), 
+    shape = guide_legend(title = "Sex"),
+    color = guide_legend(title = "Individual"))
+
+e
+```
+
+  + Individuals are grouped-ish (so properties of the individual included in each)
+
+#### Everything else PCs 3 & 4: machine?
+```{r PC3 vs PC4 not obvi associated, fig.height=15, fig.width=10}
+f <- ggplot(pca.res.df, aes(x=PC3, y=PC4, color = machine)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC3 (",pc.per[3],"%",")")) + 
+  ylab(paste0("PC4 (",pc.per[4],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+h <- ggplot(pca.res.df, aes(x=PC3, y=PC4, color = run_lane)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC3 (",pc.per[3],"%",")")) + 
+  ylab(paste0("PC4 (",pc.per[4],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+i <- ggplot(pca.res.df, aes(x=PC3, y=PC4, color = collection_date)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC3 (",pc.per[3],"%",")")) + 
+  ylab(paste0("PC4 (",pc.per[4],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+j <- ggplot(pca.res.df, aes(x=PC3, y=PC4, color = preservation_date)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC3 (",pc.per[3],"%",")")) + 
+  ylab(paste0("PC4 (",pc.per[4],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+k <- ggplot(pca.res.df, aes(x=PC3, y=PC4, color = time_preserved)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC3 (",pc.per[3],"%",")")) + 
+  ylab(paste0("PC4 (",pc.per[4],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+l <- ggplot(pca.res.df, aes(x=PC3, y=PC4, color = date_by_time_preserved)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC3 (",pc.per[3],"%",")")) + 
+  ylab(paste0("PC4 (",pc.per[4],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+m <- ggplot(pca.res.df, aes(x=PC3, y=PC4, color = spme)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC3 (",pc.per[3],"%",")")) + 
+  ylab(paste0("PC4 (",pc.per[4],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+n <- ggplot(pca.res.df, aes(x=PC3, y=PC4, color = captivity)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC3 (",pc.per[3],"%",")")) + 
+  ylab(paste0("PC4 (",pc.per[4],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+plot_grid(f, h, i, j, k, l, m, n, labels = c('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'), label_size = 12, ncol= 2, align = "hv") # plot_grid() is from the cowplot package
+```
+
+  + PC3 may (?) separate machine (but overlap)
+
+---
+
+### PC5 vs PC6  
+#### Major experimental factors vs PCs 5 & 6: nothing obvious
+```{r PC5 vs PC6 obvi associated}
+f <- ggplot(pca.res.df, aes(x=PC5, y=PC6, fill = tissue, color = individual, shape = sex)) +
+  geom_point(size = 4, stroke = 1.5) +
+  xlab(paste0("PC5 (",pc.per[5],"%",")")) + 
+  ylab(paste0("PC6 (",pc.per[6],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(21,24), labels = c("female", "male")) +
+  scale_fill_manual(values = c("gray31", "white"), labels = c("antenna", "leg")) +
+  guides(
+    fill = guide_legend(title = "Tissue", override.aes=list(shape = 21)), 
+    shape = guide_legend(title = "Sex"),
+    color = guide_legend(title = "Individual"))
+
+f
+```
+
+  + Individuals group together-ish - so properties of individuals
+
+#### Everything else PCs 5 & 6: nothing obvious
+```{r PC5 vs PC6 not obvi associated, fig.height=15, fig.width=10}
+f <- ggplot(pca.res.df, aes(x=PC5, y=PC6, color = machine)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC5 (",pc.per[5],"%",")")) + 
+  ylab(paste0("PC6 (",pc.per[6],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+h <- ggplot(pca.res.df, aes(x=PC5, y=PC6, color = run_lane)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC5 (",pc.per[5],"%",")")) + 
+  ylab(paste0("PC6 (",pc.per[6],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+i <- ggplot(pca.res.df, aes(x=PC5, y=PC6, color = collection_date)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC5 (",pc.per[5],"%",")")) + 
+  ylab(paste0("PC6 (",pc.per[6],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+j <- ggplot(pca.res.df, aes(x=PC5, y=PC6, color = preservation_date)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC5 (",pc.per[5],"%",")")) + 
+  ylab(paste0("PC6 (",pc.per[6],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+k <- ggplot(pca.res.df, aes(x=PC5, y=PC6, color = time_preserved)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC5 (",pc.per[5],"%",")")) + 
+  ylab(paste0("PC6 (",pc.per[6],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+l <- ggplot(pca.res.df, aes(x=PC5, y=PC6, color = date_by_time_preserved)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC5 (",pc.per[5],"%",")")) + 
+  ylab(paste0("PC6 (",pc.per[6],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+m <- ggplot(pca.res.df, aes(x=PC5, y=PC6, color = spme)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC5 (",pc.per[5],"%",")")) + 
+  ylab(paste0("PC6 (",pc.per[6],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+n <- ggplot(pca.res.df, aes(x=PC5, y=PC6, color = captivity)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC5 (",pc.per[5],"%",")")) + 
+  ylab(paste0("PC6 (",pc.per[6],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+plot_grid(f, h, i, j, k, l, m, n, labels = c('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'), label_size = 12, ncol= 2, align = "hv") # plot_grid() is from the cowplot package
+```
+
+  + Nothing obvious
+
+---
+
+### PC7 vs PC8  
+#### Major experimental factors vs PCs 7 & 8: nothing obvious
+```{r PC7 vs PC8 obvi associated} 
+g <- ggplot(pca.res.df, aes(x=PC7, y=PC8, fill = tissue, color = individual, shape = sex)) +
+  geom_point(size = 4, stroke = 1.5) +
+  xlab(paste0("PC7 (",pc.per[7],"%",")")) + 
+  ylab(paste0("PC8 (",pc.per[8],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(21,24), labels = c("female", "male")) +
+  scale_fill_manual(values = c("gray31", "white"), labels = c("antenna", "leg")) +
+  guides(
+    fill = guide_legend(title = "Tissue", override.aes=list(shape = 21)), 
+    shape = guide_legend(title = "Sex"),
+    color = guide_legend(title = "Individual"))
+
+g
+```
+
+#### Everything else PCs 7 & 8: nothing obvious {-}
+```{r PC7 vs PC8 not obvi associated, fig.height=15, fig.width=10}
+f <- ggplot(pca.res.df, aes(x=PC7, y=PC8, color = machine)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC7 (",pc.per[7],"%",")")) + 
+  ylab(paste0("PC8 (",pc.per[8],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+h <- ggplot(pca.res.df, aes(x=PC7, y=PC8, color = run_lane)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC7 (",pc.per[7],"%",")")) + 
+  ylab(paste0("PC8 (",pc.per[8],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+i <- ggplot(pca.res.df, aes(x=PC7, y=PC8, color = collection_date)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC7 (",pc.per[7],"%",")")) + 
+  ylab(paste0("PC8 (",pc.per[8],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+j <- ggplot(pca.res.df, aes(x=PC7, y=PC8, color = preservation_date)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC7 (",pc.per[7],"%",")")) + 
+  ylab(paste0("PC8 (",pc.per[8],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+k <- ggplot(pca.res.df, aes(x=PC7, y=PC8, color = time_preserved)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC7 (",pc.per[7],"%",")")) + 
+  ylab(paste0("PC8 (",pc.per[8],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+l <- ggplot(pca.res.df, aes(x=PC7, y=PC8, color = date_by_time_preserved)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC7 (",pc.per[7],"%",")")) + 
+  ylab(paste0("PC8 (",pc.per[8],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+m <- ggplot(pca.res.df, aes(x=PC7, y=PC8, color = spme)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC7 (",pc.per[7],"%",")")) + 
+  ylab(paste0("PC8 (",pc.per[8],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+n <- ggplot(pca.res.df, aes(x=PC7, y=PC8, color = captivity)) +
+  geom_point(size = 4) +
+  xlab(paste0("PC7 (",pc.per[7],"%",")")) + 
+  ylab(paste0("PC8 (",pc.per[8],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+   coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(16,17)) +
+  scale_alpha_manual(values = c(1, 0.6))
+
+plot_grid(f, h, i, j, k, l, m, n, labels = c('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'), label_size = 12, ncol= 2, align = "hv") # plot_grid() is from the cowplot package
+```
+
+  + Nothing obvious
+
+---
+ 
+## PCA 'small multiples' charts {.tabset} 
+This is another way to view PCA laodings to understand impact of each sample on each principal component
+
+### Tissue
+```{r tissue small multiples, fig.height=10}
+pca.res.df <- pca.res$x[,1:14] %>% # note that this is the first time you've seen the 'pipe' operator from the magrittr package
+              as_tibble() %>%
+              add_column(sample = sampleLabels,
+                          group = tissue)
+
+pca.pivot <- pivot_longer(pca.res.df, # dataframe to be pivoted
+                          cols = PC1:PC14, # column names to be stored as a SINGLE variable
+                          names_to = "PC", # name of that new variable (column)
+                          values_to = "loadings") # name of new variable (column) storing all the values (data)
+pca.pivot$PC <- factor(pca.pivot$PC, levels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10", "PC11", "PC12", "PC13", "PC14"))
+#Needed to change the PC column to factors so that the order of the small multiples plot is the correct. If did not do this, the order would be alphanumerical.
+
+ggplot(pca.pivot) +
+  aes(x=sample, y=loadings, fill=group) + # you could iteratively 'paint' different covariates onto this plot using the 'fill' aes
+  geom_bar(stat="identity") +
+  facet_wrap(~PC) +
+  labs(title="PCA 'small multiples' plot",
+       caption=paste0("produced on ", Sys.time())) +
+  theme_bw() +
+  coord_flip()
+```
+
+  + Looking at the loadings, we can say with confidence that PC1 is tissue!
+
+---
+ 
+### Sex
+```{r sex small multiples, fig.height=10}
+pca.res.df <- pca.res$x[,1:14] %>% # note that this is the first time you've seen the 'pipe' operator from the magrittr package
+  as_tibble() %>%
+  add_column(sample = sampleLabels,
+             group = sex)
+
+pca.pivot <- pivot_longer(pca.res.df, # dataframe to be pivoted
+                          cols = PC1:PC14, # column names to be stored as a SINGLE variable
+                          names_to = "PC", # name of that new variable (column)
+                          values_to = "loadings") # name of new variable (column) storing all the values (data)
+pca.pivot$PC <- factor(pca.pivot$PC, levels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10", "PC11", "PC12", "PC13", "PC14"))
+#Needed to change the PC column to factors so that the order of the small multiples plot is the correct. If did not do this, the order would be alphanumerical.
+
+ggplot(pca.pivot) +
+  aes(x=sample, y=loadings, fill=group) + # you could iteratively 'paint' different covariates onto this plot using the 'fill' aes
+  geom_bar(stat="identity") +
+  facet_wrap(~PC) +
+  labs(title="PCA 'small multiples' plot",
+       caption=paste0("produced on ", Sys.time())) +
+  theme_bw() +
+  coord_flip()
+```
+
+  + Looking at the loadings, PC2 looks like sex, but is confounded with preservation date.
+
+---
+ 
+### Machine/Run
+```{r run small multiples, fig.height=10}
+#do PCA small multiples for run
+#nothing matches for run
+pca.res.df <- pca.res$x[,1:14] %>% # note that this is the first time you've seen the 'pipe' operator from the magrittr package
+  as_tibble() %>%
+  add_column(sample = sampleLabels,
+             group = run)
+
+pca.pivot <- pivot_longer(pca.res.df, # dataframe to be pivoted
+                          cols = PC1:PC14, # column names to be stored as a SINGLE variable
+                          names_to = "PC", # name of that new variable (column)
+                          values_to = "loadings") # name of new variable (column) storing all the values (data)
+pca.pivot$PC <- factor(pca.pivot$PC, levels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10", "PC11", "PC12", "PC13", "PC14"))
+#Needed to change the PC column to factors so that the order of the small multiples plot is the correct. If did not do this, the order would be alphanumerical.
+
+ggplot(pca.pivot) +
+  aes(x=sample, y=loadings, fill=group) + # you could iteratively 'paint' different covariates onto this plot using the 'fill' aes
+  geom_bar(stat="identity") +
+  facet_wrap(~PC) +
+  labs(title="PCA 'small multiples' plot",
+       caption=paste0("produced on ", Sys.time())) +
+  theme_bw() +
+  coord_flip()
+```
+
+---
+ 
+### Runxlane combo
+```{r runxlane small multiples, fig.height=10}
+#not enough data
+pca.res.df <- pca.res$x[,1:14] %>% # note that this is the first time you've seen the 'pipe' operator from the magrittr package
+  as_tibble() %>%
+  add_column(sample = sampleLabels,
+             group = run_lane)
+pca.pivot$PC <- factor(pca.pivot$PC, levels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10", "PC11", "PC12", "PC13", "PC14"))
+#Needed to change the PC column to factors so that the order of the small multiples plot is the correct. If did not do this, the order would be alphanumerical.
+
+pca.pivot <- pivot_longer(pca.res.df, # dataframe to be pivoted
+                          cols = PC1:PC14, # column names to be stored as a SINGLE variable
+                          names_to = "PC", # name of that new variable (column)
+                          values_to = "loadings") # name of new variable (column) storing all the values (data)
+pca.pivot$PC <- factor(pca.pivot$PC, levels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10", "PC11", "PC12", "PC13", "PC14"))
+#Needed to change the PC column to factors so that the order of the small multiples plot is the correct. If did not do this, the order would be alphanumerical.
+
+ggplot(pca.pivot) +
+  aes(x=sample, y=loadings, fill=group) + # you could iteratively 'paint' different covariates onto this plot using the 'fill' aes
+  geom_bar(stat="identity") +
+  facet_wrap(~PC) +
+  labs(title="PCA 'small multiples' plot",
+       caption=paste0("produced on ", Sys.time())) +
+  theme_bw() +
+  coord_flip()
+```
+
+---
+ 
+### Collection date
+```{r collection date small multiples, fig.height=10}
+#maybe pC4
+pca.res.df <- pca.res$x[,1:14] %>% # note that this is the first time you've seen the 'pipe' operator from the magrittr package
+  as_tibble() %>%
+  add_column(sample = sampleLabels,
+             group = collection_date)
+
+pca.pivot <- pivot_longer(pca.res.df, # dataframe to be pivoted
+                          cols = PC1:PC14, # column names to be stored as a SINGLE variable
+                          names_to = "PC", # name of that new variable (column)
+                          values_to = "loadings") # name of new variable (column) storing all the values (data)
+pca.pivot$PC <- factor(pca.pivot$PC, levels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10", "PC11", "PC12", "PC13", "PC14"))
+#Needed to change the PC column to factors so that the order of the small multiples plot is the correct. If did not do this, the order would be alphanumerical.
+
+ggplot(pca.pivot) +
+  aes(x=sample, y=loadings, fill=group) + # you could iteratively 'paint' different covariates onto this plot using the 'fill' aes
+  geom_bar(stat="identity") +
+  facet_wrap(~PC) +
+  labs(title="PCA 'small multiples' plot",
+       caption=paste0("produced on ", Sys.time())) +
+  theme_bw() +
+  coord_flip()
+```
+
+---
+ 
+### Preservation date
+
+  + Maybe some relation to PC2, but not clear
+  
+```{r preservation date small multiples, fig.height=10}
+#nothing really
+pca.res.df <- pca.res$x[,1:14] %>% # note that this is the first time you've seen the 'pipe' operator from the magrittr package
+  as_tibble() %>%
+  add_column(sample = sampleLabels,
+             group = preservation_date)
+
+pca.pivot <- pivot_longer(pca.res.df, # dataframe to be pivoted
+                          cols = PC1:PC14, # column names to be stored as a SINGLE variable
+                          names_to = "PC", # name of that new variable (column)
+                          values_to = "loadings") # name of new variable (column) storing all the values (data)
+pca.pivot$PC <- factor(pca.pivot$PC, levels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10", "PC11", "PC12", "PC13", "PC14"))
+#Needed to change the PC column to factors so that the order of the small multiples plot is the correct. If did not do this, the order would be alphanumerical.
+
+ggplot(pca.pivot) +
+  aes(x=sample, y=loadings, fill=group) + # you could iteratively 'paint' different covariates onto this plot using the 'fill' aes
+  geom_bar(stat="identity") +
+  facet_wrap(~PC) +
+  labs(title="PCA 'small multiples' plot",
+       caption=paste0("produced on ", Sys.time())) +
+  theme_bw() +
+  coord_flip()
+```
+
+---
+ 
+### Preservation time
+```{r preservation time small multiples, fig.height=10}
+#not really enough samples to tell
+pca.res.df <- pca.res$x[,1:14] %>% # note that this is the first time you've seen the 'pipe' operator from the magrittr package
+  as_tibble() %>%
+  add_column(sample = sampleLabels,
+             group = time_preserved)
+
+pca.pivot <- pivot_longer(pca.res.df, # dataframe to be pivoted
+                          cols = PC1:PC14, # column names to be stored as a SINGLE variable
+                          names_to = "PC", # name of that new variable (column)
+                          values_to = "loadings") # name of new variable (column) storing all the values (data)
+pca.pivot$PC <- factor(pca.pivot$PC, levels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10", "PC11", "PC12", "PC13", "PC14"))
+#Needed to change the PC column to factors so that the order of the small multiples plot is the correct. If did not do this, the order would be alphanumerical.
+
+ggplot(pca.pivot) +
+  aes(x=sample, y=loadings, fill=group) + # you could iteratively 'paint' different covariates onto this plot using the 'fill' aes
+  geom_bar(stat="identity") +
+  facet_wrap(~PC) +
+  labs(title="PCA 'small multiples' plot",
+       caption=paste0("produced on ", Sys.time())) +
+  theme_bw() +
+  coord_flip()
+```
+
+---
+ 
+### Preservation date x time
+```{r preservation date x time small multiples, fig.height=10}
+#PC2 - seems like all females preserved in the same group!
+pca.res.df <- pca.res$x[,1:14] %>% # note that this is the first time you've seen the 'pipe' operator from the magrittr package
+  as_tibble() %>%
+  add_column(sample = sampleLabels,
+             group = date_by_time_preserved)
+
+pca.pivot <- pivot_longer(pca.res.df, # dataframe to be pivoted
+                          cols = PC1:PC14, # column names to be stored as a SINGLE variable
+                          names_to = "PC", # name of that new variable (column)
+                          values_to = "loadings") # name of new variable (column) storing all the values (data)
+pca.pivot$PC <- factor(pca.pivot$PC, levels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10", "PC11", "PC12", "PC13", "PC14"))
+#Needed to change the PC column to factors so that the order of the small multiples plot is the correct. If did not do this, the order would be alphanumerical.
+
+ggplot(pca.pivot) +
+  aes(x=sample, y=loadings, fill=group) + # you could iteratively 'paint' different covariates onto this plot using the 'fill' aes
+  geom_bar(stat="identity") +
+  facet_wrap(~PC) +
+  labs(title="PCA 'small multiples' plot",
+       caption=paste0("produced on ", Sys.time())) +
+  theme_bw() +
+  coord_flip()
+```
+
+---
+ 
+### Individual
+
+  + Some relation to PC3 - but many of the next PCs seem like thy have partial association with individual
+  
+```{r individual small multiples, fig.height=10}
+#PC3 separates individuals
+pca.res.df <- pca.res$x[,1:14] %>% # note that this is the first time you've seen the 'pipe' operator from the magrittr package
+  as_tibble() %>%
+  add_column(sample = sampleLabels,
+             group = individual)
+
+pca.pivot <- pivot_longer(pca.res.df, # dataframe to be pivoted
+                          cols = PC1:PC14, # column names to be stored as a SINGLE variable
+                          names_to = "PC", # name of that new variable (column)
+                          values_to = "loadings") # name of new variable (column) storing all the values (data)
+pca.pivot$PC <- factor(pca.pivot$PC, levels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10", "PC11", "PC12", "PC13", "PC14"))
+#Needed to change the PC column to factors so that the order of the small multiples plot is the correct. If did not do this, the order would be alphanumerical.
+
+ggplot(pca.pivot) +
+  aes(x=sample, y=loadings, fill=group) + # you could iteratively 'paint' different covariates onto this plot using the 'fill' aes
+  geom_bar(stat="identity") +
+  facet_wrap(~PC) +
+  labs(title="PCA 'small multiples' plot",
+       caption=paste0("produced on ", Sys.time())) +
+  theme_bw() +
+  coord_flip()
+```
+
+---
+ 
+### SPME
+```{r spme small multiples, fig.height=10}
+#there was only 1
+pca.res.df <- pca.res$x[,1:14] %>% # note that this is the first time you've seen the 'pipe' operator from the magrittr package
+  as_tibble() %>%
+  add_column(sample = sampleLabels,
+             group = spme)
+
+pca.pivot <- pivot_longer(pca.res.df, # dataframe to be pivoted
+                          cols = PC1:PC14, # column names to be stored as a SINGLE variable
+                          names_to = "PC", # name of that new variable (column)
+                          values_to = "loadings") # name of new variable (column) storing all the values (data)
+pca.pivot$PC <- factor(pca.pivot$PC, levels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10", "PC11", "PC12", "PC13", "PC14"))
+#Needed to change the PC column to factors so that the order of the small multiples plot is the correct. If did not do this, the order would be alphanumerical.
+
+ggplot(pca.pivot) +
+  aes(x=sample, y=loadings, fill=group) + # you could iteratively 'paint' different covariates onto this plot using the 'fill' aes
+  geom_bar(stat="identity") +
+  facet_wrap(~PC) +
+  labs(title="PCA 'small multiples' plot",
+       caption=paste0("produced on ", Sys.time())) +
+  theme_bw() +
+  coord_flip()
+```
+
+---
+ 
+### Captive duration {-}
+```{r captivity small multiples, fig.height=10}
+#hard to say
+pca.res.df <- pca.res$x[,1:14] %>% # note that this is the first time you've seen the 'pipe' operator from the magrittr package
+  as_tibble() %>%
+  add_column(sample = sampleLabels,
+             group = captivity)
+
+pca.pivot <- pivot_longer(pca.res.df, # dataframe to be pivoted
+                          cols = PC1:PC14, # column names to be stored as a SINGLE variable
+                          names_to = "PC", # name of that new variable (column)
+                          values_to = "loadings") # name of new variable (column) storing all the values (data)
+pca.pivot$PC <- factor(pca.pivot$PC, levels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10", "PC11", "PC12", "PC13", "PC14"))
+#Needed to change the PC column to factors so that the order of the small multiples plot is the correct. If did not do this, the order would be alphanumerical.
+
+ggplot(pca.pivot) +
+  aes(x=sample, y=loadings, fill=group) + # you could iteratively 'paint' different covariates onto this plot using the 'fill' aes
+  geom_bar(stat="identity") +
+  facet_wrap(~PC) +
+  labs(title="PCA 'small multiples' plot",
+       caption=paste0("produced on ", Sys.time())) +
+  theme_bw() +
+  coord_flip()
+```
+
+---
+ 
+## Final PCA plots {-}
+```{r final PCA plots, warning=FALSE}
+
+ggplot(pca.res.df) +
+  aes(x=PC1, y=PC2, label=sampleLabels, shape = tissue, group=tissue) +
+  geom_point(size=4, alpha=0.5) +
+  #geom_label() +
+  stat_ellipse() +
+  xlab(paste0("PC1 (",pc.per[1],"%",")")) + 
+  ylab(paste0("PC2 (",pc.per[2],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+  coord_fixed() +
+  theme_bw()
+
+ggplot(pca.res.df) +
+  aes(x=PC1, y=PC2, label=sampleLabels, color = sex, group=sex) +
+  geom_point(size=4, alpha=0.5) +
+  #geom_label() +
+  stat_ellipse() +
+  xlab(paste0("PC1 (",pc.per[1],"%",")")) + 
+  ylab(paste0("PC2 (",pc.per[2],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+  coord_fixed() +
+  theme_bw()
+
+#plot PCs
+p <- ggplot(pca.res.df, (aes(x=PC1, y=PC2))) +
+  geom_point(aes(fill=tissue, shape=sex), size=3, alpha = 0.6) +
+  xlab(paste0("PC1 (",pc.per[1],"%",")")) + 
+  ylab(paste0("PC2 (",pc.per[2],"%",")")) +
+  coord_fixed() +
+  theme_bw() +
+  scale_shape_manual(values = c(21,24), labels = c("female", "male")) +
+  scale_fill_manual(values=c("black", "white"), labels = c("antenna", "leg")) +
+  guides(
+    fill = guide_legend(title = "Tissue", override.aes=list(shape = 21)), 
+    shape = guide_legend(title = "Sex"))
+
+
+p
+
+#ggsave("PC1_v_2_tissue_and_sex_2025_02_20.pdf", plot = p, device = "pdf", width = 85, height = 60, dpi = 300, units = "mm")
+#ggsave("PC1_v_2_tissue_and_sex_2025_02_20.png", device = "png", width = 85, height = 60, dpi = 300, units = "mm")
+```
+
+  + PC1 = tissue
+  + PC2 = sex
+  
+---
+
+# Session info
+```{r}
+sessionInfo()
+```
+
