@@ -1,0 +1,10 @@
+---
+title: "P. pyralis odorant receptor evolution and expression analysis"
+---
+
+This website hosts the following documents:
+  
+  + Genomic location and exon structure evolution
+  + DE analysis Step 1: Reading in and normalizing data
+  + DE analysis Step 2: Multivariate analysis
+  + DE analysis Step 3: Differential expression analysis

@@ -1,0 +1,19 @@
+name: "P. pyralis odorant receptor evolution and expression"
+output_dir: "."
+navbar:
+  title: "P. pyralis odorant receptor evolution and expression"
+  left:
+    - text: "Home"
+      href: index.html
+    - text: "Genomic location and exon structure analysis"
+      href: 2025_01_15_Get_Exon_data_PpyrORs.html
+    - text: "DE expression: Step 1 Normalizing the data"
+      href: 2024_10_16_Step1_Read_normalize_data.html
+    - text: "DE expression: Step 2 Investigating sources of variation"
+      href: 2024_10_22_Step2_Multivariate_analysis_SEL.html
+    - text: "DE expression: Step 3 Differential expression"
+      href: 2024_11_04_Step3_DE_analysis.html
+output:
+  html_document:
+    theme: cerulean
+    highlight: textmate
