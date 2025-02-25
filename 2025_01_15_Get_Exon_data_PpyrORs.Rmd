@@ -1,0 +1,909 @@
+---
+title: "Genomic location and exon structure evolution analysis"
+author: "Sarah Lower"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    theme: cerulean
+    toc: TRUE
+    toc_float:
+        collapsed: TRUE
+    code_folding: hide
+editor_options: 
+  chunk_output_type: console
+---
+
+# Ready the workspace
+### Load packages
+```{r libraries, message=FALSE, warning=FALSE}
+#data wrangling
+library(tidyr)
+library(dplyr)
+
+#graphs
+library(ggplot2)
+
+#phylogenies
+library(ggtree)
+library(ape)
+library(treeio)
+
+#visualizing genes
+library(gggenes)
+library(ggh4x)
+
+#graphics tools
+library(patchwork)
+library(scales)
+```
+
+
+### Clear workspace
+```{r clear workspace}
+rm(list = ls())
+```
+
+---
+
+# Prepare data files
+
+### Read in data
+
+```{r read file}
+OR_table <-read.table("./S5.PpyrOR_Scaffolds_FINAL_2025_02_25.gff.txt", sep ="\t")
+colnames(OR_table) <- c("location", "source", "feature", "start", "end", "dot1", "strand", "dot2", "attributes")
+```
+
+### Format data
+```{r format data, warning=FALSE}
+#get LG and fragment separate
+OR_table <- OR_table %>% separate(col = location, into = c("LG", "frag"), sep = "_frag.")
+
+#clean_up the fragment name
+OR_table$frag <- gsub("_\\(reversed\\)", "", OR_table$frag)
+
+#get OR name separate
+OR_table <- OR_table %>% separate(col = attributes, into = c("OR", "Feature_title"), sep = "%2C ")
+
+#Get OR names by themselves
+OR_table$OR <- gsub("Name=", "", OR_table$OR)
+
+#filter out rows with NAs, repeat units, junctions, conflicts, and orphans - these are things that we don't want anyway
+OR_table <- OR_table %>% 
+  filter(!is.na(Feature_title)) %>%
+  filter(feature != "repeat_unit") %>%
+  filter(feature != "conflict") %>%
+  filter(feature != "Orphan") %>%
+  filter(feature != "Junction") %>%
+  filter(feature != "Editing History Insertion")
+
+#nrow(OR_table) #557
+
+#select 1 OR8 to deal with only - just 8b (more compact)
+OR_table <- OR_table %>% 
+  filter(OR != "PpyrOR8a")
+OR_table$OR[which(OR_table$OR == "PpyrOR8b")] <- "PpyrOR8"
+
+#Get LGs
+OR_table <- OR_table %>% mutate(LG_common_name = case_when(
+  LG == "NW_022170249" ~ "LG1",
+  LG == "NW_022170403" ~ "LG2",
+  LG == "NW_022170509" ~ "LG3a (X)",
+  LG == "NW_022170510" ~ "LG3b",
+  LG == "NW_022170511" ~ "LG4",
+  LG == "NW_022170596" ~ "LG5",
+  LG == "NW_022170663" ~ "LG6",
+  LG == "NW_022170738" ~ "LG7",
+  LG == "NW_022170819" ~ "LG8",
+  LG == "NW_022170878" ~ "LG9",
+  LG == "NW_022170250" ~ "LG10",
+  TRUE ~ "Other"
+))
+
+#Get LG lengths
+OR_table <- OR_table %>% mutate(LG_start = 0, LG_end = case_when(
+  LG == "NW_022170249" ~ "70905644",
+  LG == "NW_022170403" ~ "53657282",
+  LG == "NW_022170509" ~ "22220000",
+  LG == "NW_022170510" ~ "28664792",
+  LG == "NW_022170511" ~ "50607672",
+  LG == "NW_022170596" ~ "49173113",
+  LG == "NW_022170663" ~ "47017841",
+  LG == "NW_022170738" ~ "43653355",
+  LG == "NW_022170819" ~ "37158542",
+  LG == "NW_022170878" ~ "24427974",
+  LG == "NW_022170250" ~ "20869423",
+  TRUE ~ "Other"
+))
+
+OR_table$LG_end <- as.numeric(OR_table$LG_end)
+
+#fix some names with errors
+OR_table$OR[grep("PpyrOR100", OR_table$OR)] <- "PpyrOR100NTE"
+OR_table$OR[grep("PpyrOR82", OR_table$OR)] <- "PpyrOR82CTE"
+
+#Get suffixes on their own
+OR_table$suffix <- ""
+OR_table$suffix[grep("PSE", OR_table$OR)] <- "PSE" 
+OR_table$suffix[grep("NTE", OR_table$OR)] <- "NTE" 
+OR_table$suffix[grep("CTE", OR_table$OR)] <- "CTE" 
+
+#get lengths of features
+OR_table$length = OR_table$end - OR_table$start
+```
+
+### Calculate intron/exon boundaries, lengths
+```{r calculate intron exon boundaries and lengths}
+#step 1 - get the entries for a single OR together
+tibbleses <- OR_table %>% group_split(OR)
+
+#step 3 - actually do function to do the calculation for each OR
+find_OR_exon_intron_stats_one_fragment <- function(tibble){
+  i <- tibble
+  #i <- tibbleses[[101]]
+  i.LG <- unique(i$LG)
+  i.frag <- unique(i$frag)
+  i.dot1 <- unique(i$dot1)
+  i.strand <- unique(i$strand)
+  i.dot2 <- unique(i$dot2)
+  i.OR <- unique(i$OR)
+  i.LGcomnam <- unique(i$LG_common_name)
+  i.LGst<- 0
+  i.LGen<- unique(i$LG_end)
+  i.suffix <- unique(i$suffix)
+  
+  #number_of_exons
+  n_exons <- length(which(i$feature == "exon" | i$feature == "CDS"))
+  
+  #get totals
+  total_start = min(c(i$start, i$end))
+  total_end = max(c(i$start, i$end))
+  total_length = total_end - total_start
+  total_info <- tibble(i.LG, i.frag, "R", "total", as.numeric(total_start), as.numeric(total_end), i.dot1, i.strand, i.dot2, i.OR, "Total length",i.LGcomnam, as.numeric(i.LGst), as.numeric(i.LGen), i.suffix, as.numeric(total_length))
+  colnames(total_info) <- colnames(i)
+  i <- rbind(i, tibble(total_info))
+#  print("calculated total")
+  
+  #calc introns
+  
+  n_introns <- n_exons - 1
+  j = 1
+  intron_name = "none"
+  
+  if (i.strand == "+") {
+    for (intron in 1:n_introns) {
+      intron_num = j
+      intron_start = i$end[j] + 1
+      intron_end = i$start[j + 1 ] - 1
+      intron_length = intron_end - intron_start
+      intron_info = tibble(i.LG, i.frag, "R", "intron", as.numeric(intron_start), as.numeric(intron_end), i.dot1, i.strand, i.dot2, i.OR, paste("Intron", intron_num, sep= " "), i.LGcomnam, as.numeric(i.LGst), as.numeric(i.LGen), i.suffix, as.numeric(intron_length))
+      colnames(intron_info) <- colnames(i)
+      i <- rbind(i, intron_info)
+      j = j + 1
+    }
+  }else {
+    for (intron in 1:n_introns) {
+      intron_num = j
+      front_exon_num = n_exons
+      back_exon_num = n_exons - 1 
+      intron_start = i$start[front_exon_num] - 1
+      intron_end = i$end[back_exon_num] + 1
+      intron_length = intron_start - intron_end
+      intron_info = tibble(i.LG, i.frag, "R", "intron", as.numeric(intron_start), as.numeric(intron_end), i.dot1, i.strand, i.dot2, i.OR, paste("Intron", intron_num, sep= " "), i.LGcomnam, as.numeric(i.LGst), as.numeric(i.LGen), i.suffix, as.numeric(intron_length))
+      colnames(intron_info) <- colnames(i)
+      i <- rbind(i, intron_info)
+      j = j + 1
+      n_exons = n_exons - 1
+  }
+  }
+  
+  #get structure
+  exon_names <- i %>% filter(feature == "exon" | feature == "CDS") %>% select(Feature_title)
+  structure <- paste(as.vector(sort(unlist(strsplit(unlist(exon_names), "Exon "))[c(FALSE, TRUE)])), collapse = ",")
+  i$structure <- structure
+  
+  #check length calc
+  n_exons <- length(which(i$feature == "exon" | i$feature == "CDS"))
+  
+  summed_length <- sum(i %>% filter(feature != "total") %>% select(length)) + 2*n_exons - 2
+  total_length == summed_length
+  total_length - summed_length
+
+  i$converted_start = (as.numeric(i$frag)*200000) + i$start
+  i$converted_end = (as.numeric(i$frag)*200000) + i$end
+  
+  i <- i %>% mutate(converted_midpoint = ((converted_end - converted_start)/2) + converted_start)
+  if(i.strand == "+"){
+    total_tibble <- i %>% filter(feature == "total")
+    start_pos <- total_tibble$converted_start
+    i <- i %>% mutate(relative.start = converted_start - start_pos,
+                    relative.end = converted_end - start_pos)
+  }else if(i.strand == "-"){
+    total_tibble <- i %>% filter(feature == "total")
+    start_pos <- total_tibble$converted_end
+    i <- i %>% mutate(relative.start = abs(converted_end - start_pos), 
+                      relative.end = abs(converted_start - start_pos))
+}
+#  print(total_end - total_start == i$length[which(i$feature == "total")])
+  
+  return(i)
+}
+
+find_OR_exon_intron_stats_two_fragments <- function(tibble){
+  i <- tibble
+  #i <- tibbleses[[95]]
+  
+  #convert values to a single fragment
+  smallest_frag <-as.character(min(as.numeric(i$frag)))
+  next_frag = as.character(as.numeric(smallest_frag) + 1)
+  i <- i %>% mutate(frag.modified = case_when(
+    i$frag == smallest_frag ~ smallest_frag,
+    i$frag != smallest_frag ~ smallest_frag,
+    TRUE ~ "Other"
+    ), start.modified = ifelse(i$frag == smallest_frag, i$start, 
+                           ifelse(i$frag == next_frag, i$start + 200000, NA)), 
+    end.modified = ifelse(i$frag == smallest_frag, i$end, 
+                        ifelse(i$frag == next_frag, i$end + 200000, NA)),
+  )
+  
+  #check if any exons fragmented
+  if (length(grep("Part", i$Feature_title)) >= 1){
+    rest_of_data <- i[-grep("Part", i$Feature_title),]
+    split_exon <- i %>% filter(grepl("Part", i$Feature_title))
+    
+    #simplify info
+    simplified.name <- unique(gsub(" Part \\d", "", split_exon$Feature_title))
+    simplified.start <- min(c(split_exon$start.modified, split_exon$end.modified))
+    simplified.end <- max(c(split_exon$start.modified, split_exon$end.modified))
+    simplified.length <- simplified.end - simplified.start
+    
+    #add info to df
+    split_exon_info <- split_exon[1,]
+    split_exon_info$Feature_title <- simplified.name
+    split_exon_info$start.modified <- simplified.start
+    split_exon_info$end.modified <- simplified.end
+    split_exon_info$length <- simplified.length
+    
+    #combine and spit out simplified datatable
+    i <- rbind(rest_of_data, split_exon_info)
+    i <- arrange(i, desc(Feature_title))
+  }
+  
+  i.LG <- unique(i$LG)
+  i.frag <- unique(i$frag)
+  i.dot1 <- unique(i$dot1)
+  i.strand <- unique(i$strand)
+  i.dot2 <- unique(i$dot2)
+  i.OR <- unique(i$OR)
+  i.LGcomnam <- unique(i$LG_common_name)
+  i.LGst<- 0
+  i.LGen<- unique(i$LG_end)
+  i.suffix <- unique(i$suffix)
+  i.frag.modified <- unique(i$frag.modified)
+  
+  #number_of_exons
+  n_exons <- length(which(i$feature == "exon" | i$feature == "CDS"))
+  
+  #get totals
+  total_start = min(c(i$start, i$end))
+  total_end = max(c(i$start, i$end))
+  total_start_modified = min(c(i$start.modified, i$end.modified))
+  total_end_modified = max(c(i$start.modified, i$end.modified))
+  total_length = total_end - total_start
+  total_length.modified = total_end_modified - total_start_modified
+  total_info <- tibble(i.LG, i.frag[1], "R", "total", as.numeric(total_start), as.numeric(total_end), i.dot1, i.strand, i.dot2, i.OR, "Total length",i.LGcomnam, as.numeric(i.LGst), as.numeric(i.LGen), i.suffix, as.numeric(total_length), as.numeric(i.frag.modified), as.numeric(total_start_modified), as.numeric(total_end_modified), as.numeric(total_length.modified))
+  i <- i %>% mutate(total_length.modified = end.modified - start.modified)
+  colnames(total_info) <- colnames(i)
+  i <- rbind(i, tibble(total_info))
+#  print("calculated total")
+  
+  #calc introns
+  n_introns <- n_exons - 1
+  j = 1
+  intron_name = "none"
+  
+  if (i.strand == "+") {
+    for (intron in 1:n_introns) {
+      intron_num = j
+      intron_start = i$end[j] + 1
+      intron_start_modified = i$end.modified[j] + 1
+      intron_end = i$start[j + 1 ] - 1
+      intron_end_modified = i$start.modified[j + 1 ] - 1
+      intron_length = intron_end - intron_start
+      intron_length_modified = intron_end_modified - intron_start_modified
+      intron_info = tibble(i.LG, i.frag[1], "R", "intron", as.numeric(intron_start), as.numeric(intron_end), i.dot1, i.strand, i.dot2, i.OR, paste("Intron", intron_num, sep= " "), i.LGcomnam, as.numeric(i.LGst), as.numeric(i.LGen), i.suffix, as.numeric(intron_length), i.frag.modified, as.numeric(intron_start_modified), as.numeric(intron_end_modified), as.numeric(intron_length_modified))
+      colnames(intron_info) <- colnames(i)
+      i <- rbind(i, intron_info)
+      j = j + 1
+    }
+  }else{
+    for (intron in 1:n_introns) {
+      intron_num = j
+      front_exon_num = n_exons
+      back_exon_num = n_exons - 1 
+      intron_start = i$start[front_exon_num] - 1
+      intron_start_modified = i$start.modified[front_exon_num] - 1
+      intron_end = i$end[back_exon_num] + 1
+      intron_end_modified = i$end.modified[back_exon_num] + 1
+      intron_length = intron_start - intron_end
+      intron_length_modified = intron_start_modified - intron_end_modified
+      intron_info = tibble(i.LG, i.frag[1], "R", "intron", as.numeric(intron_start), as.numeric(intron_end), i.dot1, i.strand, i.dot2, i.OR, paste("Intron", intron_num, sep= " "), i.LGcomnam, as.numeric(i.LGst), as.numeric(i.LGen), i.suffix, as.numeric(intron_length), i.frag.modified, as.numeric(intron_start_modified), as.numeric(intron_end_modified), as.numeric(intron_length_modified))
+      colnames(intron_info) <- colnames(i)
+      i <- rbind(i, intron_info)
+      j = j + 1
+      n_exons = n_exons - 1
+  }
+}
+  
+  #get structure
+  exon_names <- i %>% filter(feature == "exon" | feature == "CDS") %>% select(Feature_title)
+  structure <- paste(as.vector(sort(unlist(strsplit(unlist(exon_names), "Exon "))[c(FALSE, TRUE)])), collapse = ",")
+  i$structure <- structure
+  
+  #check length calc
+  n_exons <- length(which(i$feature == "exon" | i$feature == "CDS"))
+  
+  summed_length <- sum(i %>% filter(feature != "total") %>% select(total_length.modified)) + 2*n_exons - 2
+  total_length.modified == summed_length
+  total_length.modified - summed_length
+
+  i$converted_start = (as.numeric(i$frag.modified)*200000) + i$start.modified
+  i$converted_end = (as.numeric(i$frag.modified)*200000) + i$end.modified
+
+  i <- i %>% mutate(converted_midpoint = ((converted_end - converted_start)/2) + converted_start)
+  if(i.strand == "+"){
+    total_tibble <- i %>% filter(feature == "total")
+    start_pos <- total_tibble$converted_start
+    i <- i %>% mutate(relative.start = converted_start - start_pos,
+                    relative.end = converted_end - start_pos)
+  }else if(i.strand == "-"){
+    total_tibble <- i %>% filter(feature == "total")
+    start_pos <- total_tibble$converted_end
+    i <- i %>% mutate(relative.start = abs(converted_end - start_pos), 
+                      relative.end = abs(converted_start - start_pos))
+  }
+
+#  print(total_end - total_start == i$length[which(i$feature == "total")])
+  
+  selected.i <- i %>% select(c("LG", "frag.modified", "source", "feature", "start.modified", "end.modified", "dot1", "strand", "dot2", "OR", "Feature_title", "LG_common_name", "LG_start", "LG_end", "suffix", "total_length.modified", "structure", "converted_start", "converted_end", "converted_midpoint", "relative.start", "relative.end")) 
+  colnames(selected.i) <- c("LG", "frag", "source", "feature", "start", "end", "dot1", "strand", "dot2", "OR", "Feature_title", "LG_common_name", "LG_start", "LG_end" , "suffix", "length", "structure", "converted_start", "converted_end", "converted_midpoint", "relative.start", "relative.end")
+  return(selected.i)
+}
+
+big_OR_tibble <- NULL
+single_frag_vec <- NULL
+for (t in 1:length(tibbleses)){
+  h <- tibbleses[[t]]
+  single_frag_value <- length(unique(h$frag))
+  calc_OR_tibble <- if (single_frag_value == 1){
+                      find_OR_exon_intron_stats_one_fragment(h)
+                    }else if (single_frag_value == 2){
+                  find_OR_exon_intron_stats_two_fragments(h)
+                    }else{
+                      print("More than 2 fragments!")
+                    }
+   big_OR_tibble <- bind_rows(big_OR_tibble, calc_OR_tibble)
+}
+
+```
+
+### Add additional OR info
+```{r add OR group info}
+# read in table
+supp_table <- read.table("./Supplementary_table_S1_2025_01_15.txt", sep ="\t", header = TRUE)
+supp_table_Ppyr <- supp_table %>% filter(SPECIES == "Photinus pyralis")
+
+#simplify PpyrOR8
+supp_table_Ppyr <- supp_table_Ppyr %>% filter(OR_NAME != "PpyrOR8a")
+supp_table_Ppyr$OR_NAME[which(supp_table_Ppyr$OR_NAME == "PpyrOR8b")] <- "PpyrOR8"
+supp_table_Ppyr$GENE_NAME[which(supp_table_Ppyr$GENE_NAME == "PpyrOR8b")] <- "PpyrOR8"
+
+#merge data with big_OR_tibble
+bigger_OR_tibble <- left_join(big_OR_tibble, supp_table_Ppyr, by = join_by(OR == GENE_NAME))
+#bigger_OR_tibble$OR_GROUP[which(supp_table_Ppyr$OR_NAME == "Ppyr\\Orco")] 
+```
+
+---
+
+# Visualization
+
+Questions:
+
+  + What exon/intron structures do different ORs have?
+  + How have they changed over time?
+  + Where are ORs in the genome?
+  + How has genomic location changed over time?
+
+Notes:
+
+  + Functional ORs only (PSEs and partials understandably weird) in structure analysis
+  + All ORs in location analysis
+  
+## Exon structures {.tabset}
+
+### Which exon structures are in each OR group?
+
+```{r exon structure by OR group}
+#generate tibble with only functional ORs
+only_functional_ORs <- bigger_OR_tibble %>% 
+  filter(feature == "total") %>%
+  filter(suffix != "PSE") %>% 
+  filter(suffix != "NTE") %>% 
+  filter(suffix != "CTE")
+
+#format the tibble (factor structure and OR group for plotting)
+only_functional_ORs$structure <- factor(only_functional_ORs$structure, 
+                            levels = c("A,B,C,D,E",
+                                       "A1,A2,B,C,D,E",
+                                       "A1,A2,BC,D,E",
+                                       "A1,A2B,CD,E",
+                                       "A1,A2,A3B,CD,E",
+                                       "A1,A2,A3,A4B,CD,E",
+                                       "A1,A2,A3,A4,A5B,CD,E",
+                                       "A1,A2,A3,A4,A5B,C,D,E",
+                                       "1,10,11,2,3,4,5,6,7,8,9"),
+                            labels = c("A,B,C,D,E",
+                                       "A1,A2,B,C,D,E",
+                                       "A1,A2,BC,D,E",
+                                       "A1,A2B,CD,E",
+                                       "A1,A2,A3B,CD,E",
+                                       "A1,A2,A3,A4B,CD,E",
+                                       "A1,A2,A3,A4,A5B,CD,E",
+                                       "A1,A2,A3,A4,A5B,C,D,E",
+                                       "Orco"))
+
+only_functional_ORs$OR_GROUP <- factor(only_functional_ORs$OR_GROUP, levels = c("Orco", "OR1", "2A", "2B", "3", "4", "6"), labels = c("Orco", "OR1", "Group 2A", "Group 2B", "Group 3", "Group 4", "Group 6"))
+
+# generate plot
+c <- ggplot(only_functional_ORs, aes(x = OR_GROUP, fill = structure)) +
+  geom_bar(stat = "count") +
+  scale_fill_manual(values = c("#4E79A7","#E15759", "#B6992D", "#F28E2B", "#B07AA1", "#499894", "#9D7660", "#59A14F","#797067")) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  theme(legend.position = "none") +
+  xlab("") +
+  ylab("Count") +
+  force_panelsizes(rows = unit(42, "mm"),
+                   cols = unit(42, "mm"))
+
+c +
+  theme(legend.position = "right")
+```
+
+------
+
+### How do exon structures change over time?
+
+#### Generate tree with only PpyrORs  
+```{r generate tree, warning=FALSE}
+#read in tree
+tree <- read.tree("./run_44.contree.newick")
+
+#get the data from the tree
+t_data <- as_tibble(tree)
+
+#rename PpyrOR8
+t_data$label2 <- t_data$label
+t_data$label2[which(t_data$label == "PpyrOR8b")] <- "PpyrOR8"
+
+tree.rename <- rename_taxa(tree, t_data, label, label2)
+t.rename_data <- as_tibble(tree.rename)
+
+#just get the total OR info, 1 per OR, only firefly
+only_totals <- bigger_OR_tibble %>% 
+  filter(feature == "total") %>%
+  filter(SPECIES == "Photinus pyralis")
+
+#filter out NTE, PSE, NC
+only_functional_totals <- only_totals %>% 
+  filter(suffix != "CTE") %>%
+  filter(suffix != "NTE") %>%
+  filter(suffix != "PSE")
+
+#join the data
+t_data <- left_join(t.rename_data, only_functional_totals, by = join_by(label == OR_NAME))
+
+#drop tips that are not Ppyr
+to_drop <- which(is.na(t_data$LG))
+tree_reduced <- drop.tip(tree.rename, to_drop)
+
+#check tree looks good
+#ggtree(tree_reduced) + geom_tiplab(size = 2)
+
+#get reduced tree data
+tr_data <- as_tibble(tree_reduced)
+
+#add in OR info
+tr_data <- left_join(tr_data, only_functional_totals, by = join_by(label == OR_NAME))
+
+#format tree data (factor structure, OR, OR_group, LG common name)
+tr_data$structure <- factor(tr_data$structure, 
+                            levels = c("A,B,C,D,E",
+                                       "A1,A2,B,C,D,E",
+                                       "A1,A2,BC,D,E",
+                                       "A1,A2B,CD,E",
+                                       "A1,A2,A3B,CD,E",
+                                       "A1,A2,A3,A4B,CD,E",
+                                       "A1,A2,A3,A4,A5B,CD,E",
+                                       "A1,A2,A3,A4,A5B,C,D,E",
+                                       "1,10,11,2,3,4,5,6,7,8,9"),
+                            labels = c("A,B,C,D,E",
+                                       "A1,A2,B,C,D,E",
+                                       "A1,A2,BC,D,E",
+                                       "A1,A2B,CD,E",
+                                       "A1,A2,A3B,CD,E",
+                                       "A1,A2,A3,A4B,CD,E",
+                                       "A1,A2,A3,A4,A5B,CD,E",
+                                       "A1,A2,A3,A4,A5B,C,D,E",
+                                       "Orco"))
+
+tr_data$OR <- factor(tr_data$OR, levels = tr_data$OR)
+
+tr_data$OR_GROUP <- factor(tr_data$OR_GROUP, levels = c("Orco", "OR1", "2A", "2B", "3", "4", "6")) 
+
+tr_data$LG_common_name <- factor(tr_data$LG_common_name, levels = c("LG1", "LG2", "LG3a (X)", "LG3b", "LG4", "LG5", "LG6", "LG7", "LG8", "LG9", "LG10"))
+```
+
+#### Plot the tree 
+
+```{r plot tree, message=FALSE}
+#plot tree
+p <- ggtree(tree_reduced) %<+% tr_data
+
+#add tip labels, group designations (color), and node labels to see which nodes to flip
+#p + geom_tiplab(size = 2) + 
+#  geom_tippoint(aes(fill = OR_GROUP), color = "black", shape = 21, size = 2) +
+#  geom_text(aes(label = node), size = 2, vjust = -1, hjust = 1.2) +
+#  scale_fill_manual(values = c("#4E79A7","#E15759", "#B6992D", "#F28E2B", "#B07AA1", "#59A14F", "#797067"))
+
+#flip the 2B node to be next to 2A for ease of visualization
+p2 <- flip(p, 105, 89)
+
+#plot flipped tree with labels and colors to check 
+#p2 + 
+#  geom_tiplab(size = 2, hjust = -0.1) + 
+#  geom_tippoint(aes(color = structure),  size = 1.5, alpha = 0.9) +
+#  scale_color_manual(values = c("#4E79A7","#E15759", "#B6992D", "#F28E2B", "#B07AA1", "#499894", "#9D7660", "#59A14F","#797067")) +
+#  theme(legend.position = "right") +
+# xlim(0,10) +
+#  ylim(0, 83)
+
+#plot tree with structure labels at tips
+a <- p2 + 
+  geom_tippoint(aes(color = structure),  size = 1.5, alpha = 0.9) +
+  scale_color_manual(values = c("#4E79A7","#E15759", "#B6992D", "#F28E2B", "#B07AA1", "#499894", "#9D7660", "#59A14F","#797067")) +
+  theme(legend.position = "none") +
+  xlim(0,10) +
+  ylim(0,84) +
+  force_panelsizes(rows = unit(80, "mm"),
+                   cols = unit(60, "mm"))
+
+#get node values for labels
+#getMRCA(tree_reduced, c("PpyrOR6", "PpyrOR2")) #group2A
+#getMRCA(tree_reduced, c("PpyrOR80", "PpyrOR57")) #group2B
+#getMRCA(tree_reduced, c("PpyrOR91", "PpyrOR89")) #group3
+#getMRCA(tree_reduced, c("PpyrOR83", "PpyrOR86")) #group4
+#getMRCA(tree_reduced, c("PpyrOR96", "PpyrOR99")) #group6
+
+#add cladelabels
+t <- a + geom_cladelab(node=162, label="2A", align = TRUE, offset=0.9, barsize=1, fontsize=7) +
+geom_cladelab(node=105, label="2B", align = TRUE, offset=0.9, barsize=1, fontsize=7) + 
+  geom_cladelab(node=91, label="3", align = TRUE, offset=0.9, barsize=1, fontsize=7) +
+  geom_cladelab(node=97, label="4", align = TRUE, offset=0.9, barsize=1, fontsize=7) +
+  geom_cladelab(node=102, label="6", align = TRUE, offset=0.9, barsize=1, fontsize=7) +
+  geom_strip("PpyrOR1", "PpyrOR1", label="OR1", align = TRUE, offset=-1.0, barsize=1, fontsize=3) +
+  annotate("segment", x = 3.45, y = 8.7, xend = 4.2, yend = 8.7, color = "gray48", lty = "1111", linewidth = 0.5) +
+  force_panelsizes(rows = unit(80, "mm"),
+                   cols = unit(60, "mm"))
+t + 
+  theme(legend.position = "right")
+```
+
+------
+
+### What do the exon structures look like?
+
+#### All structures
+```{r gene diagram all}
+
+#general datatable subset to focus on exons/CDS for plotting with gggenes
+big_OR_tibble_for_gene_diagrams <- bigger_OR_tibble %>% 
+  filter(feature != "total") %>% 
+  filter(suffix != "CTE" ) %>%
+  filter(suffix != "NTE") %>%
+  filter(suffix != "PSE") %>%
+  filter(feature == "exon" | feature == "CDS")
+
+#format the datatable (factor OR, structure)
+big_OR_tibble_for_gene_diagrams$OR <- factor(big_OR_tibble_for_gene_diagrams$OR, 
+                                             levels = c(get_taxa_name(a)[1:83], "Ppyr\\Orco"), 
+                                             labels = get_taxa_name(a))
+
+big_OR_tibble_for_gene_diagrams$structure <- factor(big_OR_tibble_for_gene_diagrams$structure, 
+                                                    levels = c("A,B,C,D,E",
+                                                             "A1,A2,B,C,D,E",
+                                                             "A1,A2,BC,D,E",
+                                                             "A1,A2B,CD,E",
+                                                             "A1,A2,A3B,CD,E",
+                                                             "A1,A2,A3,A4B,CD,E",
+                                                             "A1,A2,A3,A4,A5B,CD,E",
+                                                             "A1,A2,A3,A4,A5B,C,D,E",
+                                                             "1,10,11,2,3,4,5,6,7,8,9"),
+                                                  labels = c("A,B,C,D,E",
+                                                             "A1,A2,B,C,D,E",
+                                                             "A1,A2,BC,D,E",
+                                                             "A1,A2B,CD,E",
+                                                             "A1,A2,A3B,CD,E",
+                                                             "A1,A2,A3,A4B,CD,E",
+                                                             "A1,A2,A3,A4,A5B,CD,E",
+                                                             "A1,A2,A3,A4,A5B,C,D,E",
+                                                             "Orco"))
+
+#plot all exon structures
+b <- ggplot(big_OR_tibble_for_gene_diagrams, aes(xmin=relative.start, xmax = relative.end, y = OR, fill = structure, color = structure, label = OR)) +
+  geom_gene_arrow(arrowhead_width = unit(.3, "mm"), arrowhead_height = unit(2, "mm"), arrow_body_height = unit(2, "mm")) +
+  theme_genes() +
+  scale_y_discrete(limits=rev) +
+  scale_color_manual(values = c("#4E79A7","#E15759", "#B6992D", "#F28E2B", "#B07AA1", "#499894", "#9D7660", "#59A14F","#797067")) +
+  scale_fill_manual(values = c("#4E79A7","#E15759", "#B6992D", "#F28E2B", "#B07AA1", "#499894", "#9D7660", "#59A14F","#797067")) +
+  theme(legend.position = "right", axis.title.y = element_blank(), axis.text.y = element_text(size = 7)) +
+  labs(fill = "Exon structure", color = "Exon structure", x = "Position (bases)")  +
+      force_panelsizes(rows = unit(190, "mm"),
+                       cols = unit(100, "mm"))
+
+b
+```
+
+#### Example structures
+
+```{r example structures}
+
+#get a subset to make exemplar gene diagrams
+big_OR_tibble_for_gene_diagrams_exemplars <- big_OR_tibble_for_gene_diagrams %>%
+  filter(OR == "PpyrOR64" | OR == "PpyrOR27" | OR == "PpyrOR25" | OR == "PpyrOR93" | OR == "PpyrOR89" | OR == "PpyrOR6" | OR == "PpyrOR97" | OR == "PpyrOR9")
+
+#plot the subset, with labels
+    b2 <- ggplot(big_OR_tibble_for_gene_diagrams_exemplars, aes(xmin=relative.start, xmax = relative.end, y = OR, fill = structure, label = gsub("Exon ", "", Feature_title))) +
+      geom_gene_arrow(arrowhead_width = unit(0, "mm"), arrowhead_height = unit(5, "mm"), arrow_body_height = unit(5, "mm")) +
+      geom_gene_label(min.size = 1, padding.x = unit(0.1, "mm"), padding.y = unit(0.1, "mm")) +
+      theme_genes() +
+      scale_y_discrete(limits=rev) +
+      scale_fill_manual(values = c("#4E79A7","#E15759", "#B6992D", "#F28E2B", "#B07AA1", "#499894", "#9D7660", "#59A14F","#797067")) +
+      theme(legend.position = "none", axis.title.y = element_blank()) +
+      labs(fill = "Exon structure", color = "Exon structure") +
+      xlab("Position (bases)") +
+#      ylab("Exemplar") +
+      force_panelsizes(rows = unit(50, "mm"),
+                       cols = unit(85, "mm"))
+    
+b2
+```
+
+------
+
+### Main text Fig 3: Exon structure (examples)
+
+  + Finish editing in Adobe Illustrator
+  + See manuscript for final figure
+    
+```{r figure 3}
+#Figure 3 (finish editing in Adobe)
+#b2 / (c + t) + plot_annotation(tag_levels = 'a')
+#ggsave("Figure_3_Exon_structure_and_group_2025_1_15.svg", device = "svg", width = 170, height = 170, units = "mm")
+```
+
+------
+
+### Supp Fig S2: Exon structure (all)
+  
+  + Finish editing in Adobe Illustrator
+  + See manuscript for final figure
+    
+```{r figure S2}
+#Figure S2
+#t + b + plot_annotation(tag_levels = 'a')
+#ggsave("Figure_S2_Exon_structure_and_group_2025_1_15.svg", device = "svg", width = 400, height = 200, units = "mm")
+```
+
+------
+
+## Intron size {.tabset}
+
+  + Useful for OR prediction softwares (e.g. InsectOR)
+  
+### Format data
+```{r intron length plot}
+#get intron data together
+big_OR_tibble_introns <- bigger_OR_tibble %>% 
+  filter(feature != "total") %>% 
+  filter(suffix != "CTE" ) %>%
+  filter(suffix != "NTE") %>%
+  filter(suffix != "PSE") %>%
+  filter(feature == "intron")
+
+#format the data - get factors as desired (Feature title, OR group, structure)
+big_OR_tibble_introns$Feature_title <- factor(big_OR_tibble_introns$Feature_title, levels = c("Intron 1", "Intron 2", "Intron 3", "Intron 4", "Intron 5", "Intron 6", "Intron 7", "Intron 8", "Intron 9", "Intron 10"))
+
+big_OR_tibble_introns$OR_GROUP <- factor(big_OR_tibble_introns$OR_GROUP, levels = c("Orco", "OR1", "2A", "2B", "3", "4", "6"), labels = c("Orco", "OR1", "Group 2A", "Group 2B", "Group 3", "Group 4", "Group 6"))
+
+big_OR_tibble_introns$structure <- factor(big_OR_tibble_introns$structure,
+                                          levels = c("A,B,C,D,E",
+                                                             "A1,A2,B,C,D,E",
+                                                             "A1,A2,BC,D,E",
+                                                             "A1,A2B,CD,E",
+                                                             "A1,A2,A3B,CD,E",
+                                                             "A1,A2,A3,A4B,CD,E",
+                                                             "A1,A2,A3,A4,A5B,CD,E",
+                                                             "A1,A2,A3,A4,A5B,C,D,E",
+                                                             "1,10,11,2,3,4,5,6,7,8,9"),
+                                                  labels = c("A,B,C,D,E",
+                                                             "A1,A2,B,C,D,E",
+                                                             "A1,A2,BC,D,E",
+                                                             "A1,A2B,CD,E",
+                                                             "A1,A2,A3B,CD,E",
+                                                             "A1,A2,A3,A4B,CD,E",
+                                                             "A1,A2,A3,A4,A5B,CD,E",
+                                                             "A1,A2,A3,A4,A5B,C,D,E",
+                                                             "Orco"))
+```
+
+Some stats of interest:
+
+  + Min intron length (bp) is `r min(big_OR_tibble_introns$length)`
+  + Max intron length (bp) is `r max(big_OR_tibble_introns$length)`
+  + Mean intron length (bp) is `r round(mean(big_OR_tibble_introns$length), 0)`
+  + Median intron length (bp) is `r round(sd(big_OR_tibble_introns$length),0)`
+  
+------  
+
+### Plot: Histogram of intron size (Figure S3)
+```{r intron histogram, message=FALSE}
+#plot
+ggplot(big_OR_tibble_introns,(aes(x = length))) +
+  geom_histogram(alpha = 0.7, position = "identity") +
+  scale_x_continuous(trans='log10') +
+  theme_classic() +
+  xlab("Length (bp)") +
+  ylab("Count") +
+  geom_vline(xintercept = median(big_OR_tibble_introns$length), color = "#E15759", lty = "dashed", linewidth = 1) +
+  annotate("text", x = 140, y = 150, label = "Median intron length: 49 bp")
+
+#save plot
+#ggsave("Figure_S3_Intron_length_2025_1_15.svg", device = "svg", width = 170, height = 170, units = "mm")
+```
+
+------  
+
+### Plot: Intron size by group and structure
+```{r intron by group, message=FALSE}
+#plot with separate subplots of different OR groups
+ggplot(big_OR_tibble_introns,(aes(x = length, fill = structure))) +
+  geom_histogram(alpha = 0.7, position = "identity") +
+  scale_x_continuous(trans='log10') +
+  facet_wrap(~ OR_GROUP, scales = "free_y") +
+  scale_fill_manual(values = c("#4E79A7","#E15759", "#B6992D", "#F28E2B", "#B07AA1", "#499894", "#9D7660", "#59A14F","#797067")) +
+  theme_bw() +
+  xlab("Length (bp)") +
+  ylab("Count")
+```
+
+------
+
+## OR location? {.tabset}
+
+### Where are ORs on linkage groups?
+
+#### Generate data table
+```{r linkage group tibble}
+#add OR1 classification for PpyrOR1
+#now_fixed_in_supp_table
+#only_totals$OR_GROUP[which(only_totals$OR == "PpyrOR1")] <- "OR1"
+
+#get totals only and factor appropriately
+only_totals$OR_GROUP <- factor(only_totals$OR_GROUP, levels = c("Orco", "OR1", "2A", "2B", "3", "4", "6"))
+
+only_totals$LG_common_name <- factor(only_totals$LG_common_name, levels = c("LG1", "LG2", "LG3a (X)", "LG3b", "LG4", "LG5", "LG6", "LG7", "LG8", "LG9", "LG10"))
+
+
+only_totals$suffix <-  factor(only_totals$suffix, levels = c("", "NTE", "PSE", "CTE"), labels = c("Full length", "Partial", "PSE", "Partial"))
+```
+
+#### Plot: ORs on linkage groups?
+```{r LG plot}
+#define option for non-scientific axis notation
+options(scipen = 999)
+
+#make tibble of LGs and format it (factor LGs)
+LG_tibble <- tibble(LG_common_name = levels(only_totals$LG_common_name), LG_length = c(70905644, 53657282, 22220000, 28664792, 50607672, 49173113, 47017841, 43653355, 37158542, 24427974, 20869423))
+
+LG_tibble$LG_common_name <- factor(LG_tibble$LG_common_name, levels(only_totals$LG_common_name))
+
+#plot LG position
+d <- ggplot(LG_tibble, aes(x = LG_common_name, y = LG_length)) +
+  geom_bar(stat = "identity", color = "black", fill = "white") +
+  theme_classic() +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  scale_y_continuous(labels = scales::comma) +
+  ylab("Length (bp)") +
+  theme(axis.title.y = element_blank()) +
+  geom_jitter(data = only_totals, aes(x = LG_common_name, y = converted_midpoint, fill = OR_GROUP, color = OR_GROUP, shape = suffix), size = 2, alpha = 0.7, width = 0.4, height = 0) +
+  scale_shape_manual(values = c(21, 10, 8)) +
+  scale_fill_manual(values = c("#797067", "#E15759", "#B6992D", "#4E79A7", "#B07AA1", "#F28E2B","#59A14F")) +
+  scale_color_manual(values = c("#797067", "#E15759", "#B6992D", "#4E79A7", "#B07AA1", "#F28E2B","#59A14F")) + 
+  guides(shape = guide_legend(title = "Type"), color = guide_legend(title = "Group"), fill = guide_legend(title = "Group")) +
+  force_panelsizes(rows = unit(85, "mm"),
+                   cols = unit(85, "mm"))
+d 
+```
+
+
+------
+
+### How many ORs on each LG?
+```{r number of ORs on each LG}
+#barplot
+e <- ggplot(only_totals, aes(x = LG_common_name, fill = OR_GROUP)) +
+  geom_bar(stat = "count") +
+  scale_fill_manual(values = c("#797067", "#E15759", "#B6992D", "#4E79A7", "#B07AA1", "#F28E2B","#59A14F")) +
+#  scale_color_manual(values = "black") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  theme(legend.position = "none") +
+  xlab("") +
+  ylab("Count") +
+  force_panelsizes(rows = unit(42, "mm"),
+                   cols = unit(42, "mm"))
+
+e + 
+  theme(legend.position = "right")
+```
+
+
+------
+
+### How has LG location diversified across the OR phylogeny?
+```{r tree with LGs, message=FALSE}
+#plot tree with structure labels at tips
+f <- p2 + 
+#  geom_tiplab(size = 2, hjust = -0.1) + 
+  geom_tippoint(aes(color = LG_common_name),  size = 1.5, alpha = 0.9) +
+  scale_color_manual(values = c("#86BCB6", "#5c6068",  "#FABFD2", "#ffbc79","#A0CBe8", "#F1CE63", "#FF9D9A", "#d3d3d3","#D4A6C8", "#8CD17D", "#767f8b")) +
+  theme(legend.position = "right") +
+  xlim(0,10) +
+  ylim(0, 84) +
+geom_cladelab(node=162, label="2A", align = TRUE, offset=0.9, barsize=1, fontsize=7) +
+geom_cladelab(node=105, label="2B", align = TRUE, offset=0.9, barsize=1, fontsize=7) + 
+  geom_cladelab(node=91, label="3", align = TRUE, offset=0.9, barsize=1, fontsize=7) +
+  geom_cladelab(node=97, label="4", align = TRUE, offset=0.9, barsize=1, fontsize=7) +
+  geom_cladelab(node=102, label="6", align = TRUE, offset=0.9, barsize=1, fontsize=7) +
+  geom_strip("PpyrOR1", "PpyrOR1", label="OR1", align = TRUE, offset=-1.0, barsize=1, fontsize=3) +
+  annotate("segment", x = 3.5, y = 8.7, xend = 4.2, yend = 8.7, color = "gray48", lty = "1111", linewidth = 0.5) +
+#  xlim(0,7) +
+  force_panelsizes(rows = unit(80, "mm"),
+                   cols = unit(60, "mm"))
+f
+```
+
+### Main text Fig 4: ORs on LGs
+
+  + See manuscript for final figure
+  
+```{r Figure 4}
+#d / (e + f) + plot_annotation(tag_levels = 'a')
+#ggsave("Figure_4_LG_2025_1_15.svg", device = "svg", width = 400, height = 200, units = "mm")
+```
+
+-----
+
+# Housekeeping
+
+## Saving table
+```{r save table}
+#write.table(bigger_OR_tibble, file = "bigger_OR_tibble_2025_1_15.txt", sep = "\t")
+```
+
+## Session info
+```{r}
+sessionInfo()
+```

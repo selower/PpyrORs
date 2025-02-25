@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="Sarah Lower" />
+
+<meta name="date" content="2025-02-25" />
+
+<title>Genomic location and exon structure evolution analysis</title>
+
+<script src="site_libs/header-attrs-2.29/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cerulean.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<script src="site_libs/navigation-1.1/codefolding.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+<style type="text/css">
+.code-folding-btn { margin-bottom: 4px; }
+</style>
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">P. pyralis odorant receptor evolution and expression</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li>
+  <a href="2025_01_15_Get_Exon_data_PpyrORs.html">Genomic location and exon structure analysis</a>
+</li>
+<li>
+  <a href="2024_10_16_Step1_Read_normalize_data.html">DE expression: Step 1 Normalizing the data</a>
+</li>
+<li>
+  <a href="2024_10_22_Step2_Multivariate_analysis_SEL.html">DE expression: Step 2 Investigating sources of variation</a>
+</li>
+<li>
+  <a href="2024_11_04_Step3_DE_analysis.html">DE expression: Step 3 Differential expression</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+<div class="btn-group pull-right float-right">
+<button type="button" class="btn btn-default btn-xs btn-secondary btn-sm dropdown-toggle" data-toggle="dropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span>Code</span> <span class="caret"></span></button>
+<ul class="dropdown-menu dropdown-menu-right" style="min-width: 50px;">
+<li><a id="rmd-show-all-code" href="#">Show All Code</a></li>
+<li><a id="rmd-hide-all-code" href="#">Hide All Code</a></li>
+</ul>
+</div>
+
+
+
+<h1 class="title toc-ignore">Genomic location and exon structure
+evolution analysis</h1>
+<h4 class="author">Sarah Lower</h4>
+<h4 class="date">2025-02-25</h4>
+
+</div>
+
+
+<div id="ready-the-workspace" class="section level1">
+<h1>Ready the workspace</h1>
+<div id="load-packages" class="section level3">
+<h3>Load packages</h3>
+<pre class="r"><code>#data wrangling
+library(tidyr)
+library(dplyr)
+
+#graphs
+library(ggplot2)
+
+#phylogenies
+library(ggtree)
+library(ape)
+library(treeio)
+
+#visualizing genes
+library(gggenes)
+library(ggh4x)
+
+#graphics tools
+library(patchwork)
+library(scales)</code></pre>
+</div>
+<div id="clear-workspace" class="section level3">
+<h3>Clear workspace</h3>
+<pre class="r"><code>rm(list = ls())</code></pre>
+<hr />
+</div>
+</div>
+<div id="prepare-data-files" class="section level1">
+<h1>Prepare data files</h1>
+<div id="read-in-data" class="section level3">
+<h3>Read in data</h3>
+<pre class="r"><code>OR_table &lt;-read.table(&quot;./S5.PpyrOR_Scaffolds_FINAL_2025_02_25.gff.txt&quot;, sep =&quot;\t&quot;)
+colnames(OR_table) &lt;- c(&quot;location&quot;, &quot;source&quot;, &quot;feature&quot;, &quot;start&quot;, &quot;end&quot;, &quot;dot1&quot;, &quot;strand&quot;, &quot;dot2&quot;, &quot;attributes&quot;)</code></pre>
+</div>
+<div id="format-data" class="section level3">
+<h3>Format data</h3>
+<pre class="r"><code>#get LG and fragment separate
+OR_table &lt;- OR_table %&gt;% separate(col = location, into = c(&quot;LG&quot;, &quot;frag&quot;), sep = &quot;_frag.&quot;)
+
+#clean_up the fragment name
+OR_table$frag &lt;- gsub(&quot;_\\(reversed\\)&quot;, &quot;&quot;, OR_table$frag)
+
+#get OR name separate
+OR_table &lt;- OR_table %&gt;% separate(col = attributes, into = c(&quot;OR&quot;, &quot;Feature_title&quot;), sep = &quot;%2C &quot;)
+
+#Get OR names by themselves
+OR_table$OR &lt;- gsub(&quot;Name=&quot;, &quot;&quot;, OR_table$OR)
+
+#filter out rows with NAs, repeat units, junctions, conflicts, and orphans - these are things that we don&#39;t want anyway
+OR_table &lt;- OR_table %&gt;% 
+  filter(!is.na(Feature_title)) %&gt;%
+  filter(feature != &quot;repeat_unit&quot;) %&gt;%
+  filter(feature != &quot;conflict&quot;) %&gt;%
+  filter(feature != &quot;Orphan&quot;) %&gt;%
+  filter(feature != &quot;Junction&quot;) %&gt;%
+  filter(feature != &quot;Editing History Insertion&quot;)
+
+#nrow(OR_table) #557
+
+#select 1 OR8 to deal with only - just 8b (more compact)
+OR_table &lt;- OR_table %&gt;% 
+  filter(OR != &quot;PpyrOR8a&quot;)
+OR_table$OR[which(OR_table$OR == &quot;PpyrOR8b&quot;)] &lt;- &quot;PpyrOR8&quot;
+
+#Get LGs
+OR_table &lt;- OR_table %&gt;% mutate(LG_common_name = case_when(
+  LG == &quot;NW_022170249&quot; ~ &quot;LG1&quot;,
+  LG == &quot;NW_022170403&quot; ~ &quot;LG2&quot;,
+  LG == &quot;NW_022170509&quot; ~ &quot;LG3a (X)&quot;,
+  LG == &quot;NW_022170510&quot; ~ &quot;LG3b&quot;,
+  LG == &quot;NW_022170511&quot; ~ &quot;LG4&quot;,
+  LG == &quot;NW_022170596&quot; ~ &quot;LG5&quot;,
+  LG == &quot;NW_022170663&quot; ~ &quot;LG6&quot;,
+  LG == &quot;NW_022170738&quot; ~ &quot;LG7&quot;,
+  LG == &quot;NW_022170819&quot; ~ &quot;LG8&quot;,
+  LG == &quot;NW_022170878&quot; ~ &quot;LG9&quot;,
+  LG == &quot;NW_022170250&quot; ~ &quot;LG10&quot;,
+  TRUE ~ &quot;Other&quot;
+))
+
+#Get LG lengths
+OR_table &lt;- OR_table %&gt;% mutate(LG_start = 0, LG_end = case_when(
+  LG == &quot;NW_022170249&quot; ~ &quot;70905644&quot;,
+  LG == &quot;NW_022170403&quot; ~ &quot;53657282&quot;,
+  LG == &quot;NW_022170509&quot; ~ &quot;22220000&quot;,
+  LG == &quot;NW_022170510&quot; ~ &quot;28664792&quot;,
+  LG == &quot;NW_022170511&quot; ~ &quot;50607672&quot;,
+  LG == &quot;NW_022170596&quot; ~ &quot;49173113&quot;,
+  LG == &quot;NW_022170663&quot; ~ &quot;47017841&quot;,
+  LG == &quot;NW_022170738&quot; ~ &quot;43653355&quot;,
+  LG == &quot;NW_022170819&quot; ~ &quot;37158542&quot;,
+  LG == &quot;NW_022170878&quot; ~ &quot;24427974&quot;,
+  LG == &quot;NW_022170250&quot; ~ &quot;20869423&quot;,
+  TRUE ~ &quot;Other&quot;
+))
+
+OR_table$LG_end &lt;- as.numeric(OR_table$LG_end)
+
+#fix some names with errors
+OR_table$OR[grep(&quot;PpyrOR100&quot;, OR_table$OR)] &lt;- &quot;PpyrOR100NTE&quot;
+OR_table$OR[grep(&quot;PpyrOR82&quot;, OR_table$OR)] &lt;- &quot;PpyrOR82CTE&quot;
+
+#Get suffixes on their own
+OR_table$suffix &lt;- &quot;&quot;
+OR_table$suffix[grep(&quot;PSE&quot;, OR_table$OR)] &lt;- &quot;PSE&quot; 
+OR_table$suffix[grep(&quot;NTE&quot;, OR_table$OR)] &lt;- &quot;NTE&quot; 
+OR_table$suffix[grep(&quot;CTE&quot;, OR_table$OR)] &lt;- &quot;CTE&quot; 
+
+#get lengths of features
+OR_table$length = OR_table$end - OR_table$start</code></pre>
+</div>
+<div id="calculate-intronexon-boundaries-lengths"
+class="section level3">
+<h3>Calculate intron/exon boundaries, lengths</h3>
+<pre class="r"><code>#step 1 - get the entries for a single OR together
+tibbleses &lt;- OR_table %&gt;% group_split(OR)
+
+#step 3 - actually do function to do the calculation for each OR
+find_OR_exon_intron_stats_one_fragment &lt;- function(tibble){
+  i &lt;- tibble
+  #i &lt;- tibbleses[[101]]
+  i.LG &lt;- unique(i$LG)
+  i.frag &lt;- unique(i$frag)
+  i.dot1 &lt;- unique(i$dot1)
+  i.strand &lt;- unique(i$strand)
+  i.dot2 &lt;- unique(i$dot2)
+  i.OR &lt;- unique(i$OR)
+  i.LGcomnam &lt;- unique(i$LG_common_name)
+  i.LGst&lt;- 0
+  i.LGen&lt;- unique(i$LG_end)
+  i.suffix &lt;- unique(i$suffix)
+  
+  #number_of_exons
+  n_exons &lt;- length(which(i$feature == &quot;exon&quot; | i$feature == &quot;CDS&quot;))
+  
+  #get totals
+  total_start = min(c(i$start, i$end))
+  total_end = max(c(i$start, i$end))
+  total_length = total_end - total_start
+  total_info &lt;- tibble(i.LG, i.frag, &quot;R&quot;, &quot;total&quot;, as.numeric(total_start), as.numeric(total_end), i.dot1, i.strand, i.dot2, i.OR, &quot;Total length&quot;,i.LGcomnam, as.numeric(i.LGst), as.numeric(i.LGen), i.suffix, as.numeric(total_length))
+  colnames(total_info) &lt;- colnames(i)
+  i &lt;- rbind(i, tibble(total_info))
+#  print(&quot;calculated total&quot;)
+  
+  #calc introns
+  
+  n_introns &lt;- n_exons - 1
+  j = 1
+  intron_name = &quot;none&quot;
+  
+  if (i.strand == &quot;+&quot;) {
+    for (intron in 1:n_introns) {
+      intron_num = j
+      intron_start = i$end[j] + 1
+      intron_end = i$start[j + 1 ] - 1
+      intron_length = intron_end - intron_start
+      intron_info = tibble(i.LG, i.frag, &quot;R&quot;, &quot;intron&quot;, as.numeric(intron_start), as.numeric(intron_end), i.dot1, i.strand, i.dot2, i.OR, paste(&quot;Intron&quot;, intron_num, sep= &quot; &quot;), i.LGcomnam, as.numeric(i.LGst), as.numeric(i.LGen), i.suffix, as.numeric(intron_length))
+      colnames(intron_info) &lt;- colnames(i)
+      i &lt;- rbind(i, intron_info)
+      j = j + 1
+    }
+  }else {
+    for (intron in 1:n_introns) {
+      intron_num = j
+      front_exon_num = n_exons
+      back_exon_num = n_exons - 1 
+      intron_start = i$start[front_exon_num] - 1
+      intron_end = i$end[back_exon_num] + 1
+      intron_length = intron_start - intron_end
+      intron_info = tibble(i.LG, i.frag, &quot;R&quot;, &quot;intron&quot;, as.numeric(intron_start), as.numeric(intron_end), i.dot1, i.strand, i.dot2, i.OR, paste(&quot;Intron&quot;, intron_num, sep= &quot; &quot;), i.LGcomnam, as.numeric(i.LGst), as.numeric(i.LGen), i.suffix, as.numeric(intron_length))
+      colnames(intron_info) &lt;- colnames(i)
+      i &lt;- rbind(i, intron_info)
+      j = j + 1
+      n_exons = n_exons - 1
+  }
+  }
+  
+  #get structure
+  exon_names &lt;- i %&gt;% filter(feature == &quot;exon&quot; | feature == &quot;CDS&quot;) %&gt;% select(Feature_title)
+  structure &lt;- paste(as.vector(sort(unlist(strsplit(unlist(exon_names), &quot;Exon &quot;))[c(FALSE, TRUE)])), collapse = &quot;,&quot;)
+  i$structure &lt;- structure
+  
+  #check length calc
+  n_exons &lt;- length(which(i$feature == &quot;exon&quot; | i$feature == &quot;CDS&quot;))
+  
+  summed_length &lt;- sum(i %&gt;% filter(feature != &quot;total&quot;) %&gt;% select(length)) + 2*n_exons - 2
+  total_length == summed_length
+  total_length - summed_length
+
+  i$converted_start = (as.numeric(i$frag)*200000) + i$start
+  i$converted_end = (as.numeric(i$frag)*200000) + i$end
+  
+  i &lt;- i %&gt;% mutate(converted_midpoint = ((converted_end - converted_start)/2) + converted_start)
+  if(i.strand == &quot;+&quot;){
+    total_tibble &lt;- i %&gt;% filter(feature == &quot;total&quot;)
+    start_pos &lt;- total_tibble$converted_start
+    i &lt;- i %&gt;% mutate(relative.start = converted_start - start_pos,
+                    relative.end = converted_end - start_pos)
+  }else if(i.strand == &quot;-&quot;){
+    total_tibble &lt;- i %&gt;% filter(feature == &quot;total&quot;)
+    start_pos &lt;- total_tibble$converted_end
+    i &lt;- i %&gt;% mutate(relative.start = abs(converted_end - start_pos), 
+                      relative.end = abs(converted_start - start_pos))
+}
+#  print(total_end - total_start == i$length[which(i$feature == &quot;total&quot;)])
+  
+  return(i)
+}
+
+find_OR_exon_intron_stats_two_fragments &lt;- function(tibble){
+  i &lt;- tibble
+  #i &lt;- tibbleses[[95]]
+  
+  #convert values to a single fragment
+  smallest_frag &lt;-as.character(min(as.numeric(i$frag)))
+  next_frag = as.character(as.numeric(smallest_frag) + 1)
+  i &lt;- i %&gt;% mutate(frag.modified = case_when(
+    i$frag == smallest_frag ~ smallest_frag,
+    i$frag != smallest_frag ~ smallest_frag,
+    TRUE ~ &quot;Other&quot;
+    ), start.modified = ifelse(i$frag == smallest_frag, i$start, 
+                           ifelse(i$frag == next_frag, i$start + 200000, NA)), 
+    end.modified = ifelse(i$frag == smallest_frag, i$end, 
+                        ifelse(i$frag == next_frag, i$end + 200000, NA)),
+  )
+  
+  #check if any exons fragmented
+  if (length(grep(&quot;Part&quot;, i$Feature_title)) &gt;= 1){
+    rest_of_data &lt;- i[-grep(&quot;Part&quot;, i$Feature_title),]
+    split_exon &lt;- i %&gt;% filter(grepl(&quot;Part&quot;, i$Feature_title))
+    
+    #simplify info
+    simplified.name &lt;- unique(gsub(&quot; Part \\d&quot;, &quot;&quot;, split_exon$Feature_title))
+    simplified.start &lt;- min(c(split_exon$start.modified, split_exon$end.modified))
+    simplified.end &lt;- max(c(split_exon$start.modified, split_exon$end.modified))
+    simplified.length &lt;- simplified.end - simplified.start
+    
+    #add info to df
+    split_exon_info &lt;- split_exon[1,]
+    split_exon_info$Feature_title &lt;- simplified.name
+    split_exon_info$start.modified &lt;- simplified.start
+    split_exon_info$end.modified &lt;- simplified.end
+    split_exon_info$length &lt;- simplified.length
+    
+    #combine and spit out simplified datatable
+    i &lt;- rbind(rest_of_data, split_exon_info)
+    i &lt;- arrange(i, desc(Feature_title))
+  }
+  
+  i.LG &lt;- unique(i$LG)
+  i.frag &lt;- unique(i$frag)
+  i.dot1 &lt;- unique(i$dot1)
+  i.strand &lt;- unique(i$strand)
+  i.dot2 &lt;- unique(i$dot2)
+  i.OR &lt;- unique(i$OR)
+  i.LGcomnam &lt;- unique(i$LG_common_name)
+  i.LGst&lt;- 0
+  i.LGen&lt;- unique(i$LG_end)
+  i.suffix &lt;- unique(i$suffix)
+  i.frag.modified &lt;- unique(i$frag.modified)
+  
+  #number_of_exons
+  n_exons &lt;- length(which(i$feature == &quot;exon&quot; | i$feature == &quot;CDS&quot;))
+  
+  #get totals
+  total_start = min(c(i$start, i$end))
+  total_end = max(c(i$start, i$end))
+  total_start_modified = min(c(i$start.modified, i$end.modified))
+  total_end_modified = max(c(i$start.modified, i$end.modified))
+  total_length = total_end - total_start
+  total_length.modified = total_end_modified - total_start_modified
+  total_info &lt;- tibble(i.LG, i.frag[1], &quot;R&quot;, &quot;total&quot;, as.numeric(total_start), as.numeric(total_end), i.dot1, i.strand, i.dot2, i.OR, &quot;Total length&quot;,i.LGcomnam, as.numeric(i.LGst), as.numeric(i.LGen), i.suffix, as.numeric(total_length), as.numeric(i.frag.modified), as.numeric(total_start_modified), as.numeric(total_end_modified), as.numeric(total_length.modified))
+  i &lt;- i %&gt;% mutate(total_length.modified = end.modified - start.modified)
+  colnames(total_info) &lt;- colnames(i)
+  i &lt;- rbind(i, tibble(total_info))
+#  print(&quot;calculated total&quot;)
+  
+  #calc introns
+  n_introns &lt;- n_exons - 1
+  j = 1
+  intron_name = &quot;none&quot;
+  
+  if (i.strand == &quot;+&quot;) {
+    for (intron in 1:n_introns) {
+      intron_num = j
+      intron_start = i$end[j] + 1
+      intron_start_modified = i$end.modified[j] + 1
+      intron_end = i$start[j + 1 ] - 1
+      intron_end_modified = i$start.modified[j + 1 ] - 1
+      intron_length = intron_end - intron_start
+      intron_length_modified = intron_end_modified - intron_start_modified
+      intron_info = tibble(i.LG, i.frag[1], &quot;R&quot;, &quot;intron&quot;, as.numeric(intron_start), as.numeric(intron_end), i.dot1, i.strand, i.dot2, i.OR, paste(&quot;Intron&quot;, intron_num, sep= &quot; &quot;), i.LGcomnam, as.numeric(i.LGst), as.numeric(i.LGen), i.suffix, as.numeric(intron_length), i.frag.modified, as.numeric(intron_start_modified), as.numeric(intron_end_modified), as.numeric(intron_length_modified))
+      colnames(intron_info) &lt;- colnames(i)
+      i &lt;- rbind(i, intron_info)
+      j = j + 1
+    }
+  }else{
+    for (intron in 1:n_introns) {
+      intron_num = j
+      front_exon_num = n_exons
+      back_exon_num = n_exons - 1 
+      intron_start = i$start[front_exon_num] - 1
+      intron_start_modified = i$start.modified[front_exon_num] - 1
+      intron_end = i$end[back_exon_num] + 1
+      intron_end_modified = i$end.modified[back_exon_num] + 1
+      intron_length = intron_start - intron_end
+      intron_length_modified = intron_start_modified - intron_end_modified
+      intron_info = tibble(i.LG, i.frag[1], &quot;R&quot;, &quot;intron&quot;, as.numeric(intron_start), as.numeric(intron_end), i.dot1, i.strand, i.dot2, i.OR, paste(&quot;Intron&quot;, intron_num, sep= &quot; &quot;), i.LGcomnam, as.numeric(i.LGst), as.numeric(i.LGen), i.suffix, as.numeric(intron_length), i.frag.modified, as.numeric(intron_start_modified), as.numeric(intron_end_modified), as.numeric(intron_length_modified))
+      colnames(intron_info) &lt;- colnames(i)
+      i &lt;- rbind(i, intron_info)
+      j = j + 1
+      n_exons = n_exons - 1
+  }
+}
+  
+  #get structure
+  exon_names &lt;- i %&gt;% filter(feature == &quot;exon&quot; | feature == &quot;CDS&quot;) %&gt;% select(Feature_title)
+  structure &lt;- paste(as.vector(sort(unlist(strsplit(unlist(exon_names), &quot;Exon &quot;))[c(FALSE, TRUE)])), collapse = &quot;,&quot;)
+  i$structure &lt;- structure
+  
+  #check length calc
+  n_exons &lt;- length(which(i$feature == &quot;exon&quot; | i$feature == &quot;CDS&quot;))
+  
+  summed_length &lt;- sum(i %&gt;% filter(feature != &quot;total&quot;) %&gt;% select(total_length.modified)) + 2*n_exons - 2
+  total_length.modified == summed_length
+  total_length.modified - summed_length
+
+  i$converted_start = (as.numeric(i$frag.modified)*200000) + i$start.modified
+  i$converted_end = (as.numeric(i$frag.modified)*200000) + i$end.modified
+
+  i &lt;- i %&gt;% mutate(converted_midpoint = ((converted_end - converted_start)/2) + converted_start)
+  if(i.strand == &quot;+&quot;){
+    total_tibble &lt;- i %&gt;% filter(feature == &quot;total&quot;)
+    start_pos &lt;- total_tibble$converted_start
+    i &lt;- i %&gt;% mutate(relative.start = converted_start - start_pos,
+                    relative.end = converted_end - start_pos)
+  }else if(i.strand == &quot;-&quot;){
+    total_tibble &lt;- i %&gt;% filter(feature == &quot;total&quot;)
+    start_pos &lt;- total_tibble$converted_end
+    i &lt;- i %&gt;% mutate(relative.start = abs(converted_end - start_pos), 
+                      relative.end = abs(converted_start - start_pos))
+  }
+
+#  print(total_end - total_start == i$length[which(i$feature == &quot;total&quot;)])
+  
+  selected.i &lt;- i %&gt;% select(c(&quot;LG&quot;, &quot;frag.modified&quot;, &quot;source&quot;, &quot;feature&quot;, &quot;start.modified&quot;, &quot;end.modified&quot;, &quot;dot1&quot;, &quot;strand&quot;, &quot;dot2&quot;, &quot;OR&quot;, &quot;Feature_title&quot;, &quot;LG_common_name&quot;, &quot;LG_start&quot;, &quot;LG_end&quot;, &quot;suffix&quot;, &quot;total_length.modified&quot;, &quot;structure&quot;, &quot;converted_start&quot;, &quot;converted_end&quot;, &quot;converted_midpoint&quot;, &quot;relative.start&quot;, &quot;relative.end&quot;)) 
+  colnames(selected.i) &lt;- c(&quot;LG&quot;, &quot;frag&quot;, &quot;source&quot;, &quot;feature&quot;, &quot;start&quot;, &quot;end&quot;, &quot;dot1&quot;, &quot;strand&quot;, &quot;dot2&quot;, &quot;OR&quot;, &quot;Feature_title&quot;, &quot;LG_common_name&quot;, &quot;LG_start&quot;, &quot;LG_end&quot; , &quot;suffix&quot;, &quot;length&quot;, &quot;structure&quot;, &quot;converted_start&quot;, &quot;converted_end&quot;, &quot;converted_midpoint&quot;, &quot;relative.start&quot;, &quot;relative.end&quot;)
+  return(selected.i)
+}
+
+big_OR_tibble &lt;- NULL
+single_frag_vec &lt;- NULL
+for (t in 1:length(tibbleses)){
+  h &lt;- tibbleses[[t]]
+  single_frag_value &lt;- length(unique(h$frag))
+  calc_OR_tibble &lt;- if (single_frag_value == 1){
+                      find_OR_exon_intron_stats_one_fragment(h)
+                    }else if (single_frag_value == 2){
+                  find_OR_exon_intron_stats_two_fragments(h)
+                    }else{
+                      print(&quot;More than 2 fragments!&quot;)
+                    }
+   big_OR_tibble &lt;- bind_rows(big_OR_tibble, calc_OR_tibble)
+}</code></pre>
+</div>
+<div id="add-additional-or-info" class="section level3">
+<h3>Add additional OR info</h3>
+<pre class="r"><code># read in table
+supp_table &lt;- read.table(&quot;./Supplementary_table_S1_2025_01_15.txt&quot;, sep =&quot;\t&quot;, header = TRUE)
+supp_table_Ppyr &lt;- supp_table %&gt;% filter(SPECIES == &quot;Photinus pyralis&quot;)
+
+#simplify PpyrOR8
+supp_table_Ppyr &lt;- supp_table_Ppyr %&gt;% filter(OR_NAME != &quot;PpyrOR8a&quot;)
+supp_table_Ppyr$OR_NAME[which(supp_table_Ppyr$OR_NAME == &quot;PpyrOR8b&quot;)] &lt;- &quot;PpyrOR8&quot;
+supp_table_Ppyr$GENE_NAME[which(supp_table_Ppyr$GENE_NAME == &quot;PpyrOR8b&quot;)] &lt;- &quot;PpyrOR8&quot;
+
+#merge data with big_OR_tibble
+bigger_OR_tibble &lt;- left_join(big_OR_tibble, supp_table_Ppyr, by = join_by(OR == GENE_NAME))
+#bigger_OR_tibble$OR_GROUP[which(supp_table_Ppyr$OR_NAME == &quot;Ppyr\\Orco&quot;)] </code></pre>
+<hr />
+</div>
+</div>
+<div id="visualization" class="section level1">
+<h1>Visualization</h1>
+<p>Questions:</p>
+<ul>
+<li>What exon/intron structures do different ORs have?</li>
+<li>How have they changed over time?</li>
+<li>Where are ORs in the genome?</li>
+<li>How has genomic location changed over time?</li>
+</ul>
+<p>Notes:</p>
+<ul>
+<li>Functional ORs only (PSEs and partials understandably weird) in
+structure analysis</li>
+<li>All ORs in location analysis</li>
+</ul>
+<div id="exon-structures" class="section level2 tabset">
+<h2 class="tabset">Exon structures</h2>
+<div id="which-exon-structures-are-in-each-or-group"
+class="section level3">
+<h3>Which exon structures are in each OR group?</h3>
+<pre class="r"><code>#generate tibble with only functional ORs
+only_functional_ORs &lt;- bigger_OR_tibble %&gt;% 
+  filter(feature == &quot;total&quot;) %&gt;%
+  filter(suffix != &quot;PSE&quot;) %&gt;% 
+  filter(suffix != &quot;NTE&quot;) %&gt;% 
+  filter(suffix != &quot;CTE&quot;)
+
+#format the tibble (factor structure and OR group for plotting)
+only_functional_ORs$structure &lt;- factor(only_functional_ORs$structure, 
+                            levels = c(&quot;A,B,C,D,E&quot;,
+                                       &quot;A1,A2,B,C,D,E&quot;,
+                                       &quot;A1,A2,BC,D,E&quot;,
+                                       &quot;A1,A2B,CD,E&quot;,
+                                       &quot;A1,A2,A3B,CD,E&quot;,
+                                       &quot;A1,A2,A3,A4B,CD,E&quot;,
+                                       &quot;A1,A2,A3,A4,A5B,CD,E&quot;,
+                                       &quot;A1,A2,A3,A4,A5B,C,D,E&quot;,
+                                       &quot;1,10,11,2,3,4,5,6,7,8,9&quot;),
+                            labels = c(&quot;A,B,C,D,E&quot;,
+                                       &quot;A1,A2,B,C,D,E&quot;,
+                                       &quot;A1,A2,BC,D,E&quot;,
+                                       &quot;A1,A2B,CD,E&quot;,
+                                       &quot;A1,A2,A3B,CD,E&quot;,
+                                       &quot;A1,A2,A3,A4B,CD,E&quot;,
+                                       &quot;A1,A2,A3,A4,A5B,CD,E&quot;,
+                                       &quot;A1,A2,A3,A4,A5B,C,D,E&quot;,
+                                       &quot;Orco&quot;))
+
+only_functional_ORs$OR_GROUP &lt;- factor(only_functional_ORs$OR_GROUP, levels = c(&quot;Orco&quot;, &quot;OR1&quot;, &quot;2A&quot;, &quot;2B&quot;, &quot;3&quot;, &quot;4&quot;, &quot;6&quot;), labels = c(&quot;Orco&quot;, &quot;OR1&quot;, &quot;Group 2A&quot;, &quot;Group 2B&quot;, &quot;Group 3&quot;, &quot;Group 4&quot;, &quot;Group 6&quot;))
+
+# generate plot
+c &lt;- ggplot(only_functional_ORs, aes(x = OR_GROUP, fill = structure)) +
+  geom_bar(stat = &quot;count&quot;) +
+  scale_fill_manual(values = c(&quot;#4E79A7&quot;,&quot;#E15759&quot;, &quot;#B6992D&quot;, &quot;#F28E2B&quot;, &quot;#B07AA1&quot;, &quot;#499894&quot;, &quot;#9D7660&quot;, &quot;#59A14F&quot;,&quot;#797067&quot;)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  theme(legend.position = &quot;none&quot;) +
+  xlab(&quot;&quot;) +
+  ylab(&quot;Count&quot;) +
+  force_panelsizes(rows = unit(42, &quot;mm&quot;),
+                   cols = unit(42, &quot;mm&quot;))
+
+c +
+  theme(legend.position = &quot;right&quot;)</code></pre>
+<p><img src="2025_01_15_Get_Exon_data_PpyrORs_files/figure-html/exon%20structure%20by%20OR%20group-1.png" width="672" /></p>
+<hr />
+</div>
+<div id="how-do-exon-structures-change-over-time"
+class="section level3">
+<h3>How do exon structures change over time?</h3>
+<div id="generate-tree-with-only-ppyrors" class="section level4">
+<h4>Generate tree with only PpyrORs</h4>
+<pre class="r"><code>#read in tree
+tree &lt;- read.tree(&quot;./run_44.contree.newick&quot;)
+
+#get the data from the tree
+t_data &lt;- as_tibble(tree)
+
+#rename PpyrOR8
+t_data$label2 &lt;- t_data$label
+t_data$label2[which(t_data$label == &quot;PpyrOR8b&quot;)] &lt;- &quot;PpyrOR8&quot;
+
+tree.rename &lt;- rename_taxa(tree, t_data, label, label2)
+t.rename_data &lt;- as_tibble(tree.rename)
+
+#just get the total OR info, 1 per OR, only firefly
+only_totals &lt;- bigger_OR_tibble %&gt;% 
+  filter(feature == &quot;total&quot;) %&gt;%
+  filter(SPECIES == &quot;Photinus pyralis&quot;)
+
+#filter out NTE, PSE, NC
+only_functional_totals &lt;- only_totals %&gt;% 
+  filter(suffix != &quot;CTE&quot;) %&gt;%
+  filter(suffix != &quot;NTE&quot;) %&gt;%
+  filter(suffix != &quot;PSE&quot;)
+
+#join the data
+t_data &lt;- left_join(t.rename_data, only_functional_totals, by = join_by(label == OR_NAME))
+
+#drop tips that are not Ppyr
+to_drop &lt;- which(is.na(t_data$LG))
+tree_reduced &lt;- drop.tip(tree.rename, to_drop)
+
+#check tree looks good
+#ggtree(tree_reduced) + geom_tiplab(size = 2)
+
+#get reduced tree data
+tr_data &lt;- as_tibble(tree_reduced)
+
+#add in OR info
+tr_data &lt;- left_join(tr_data, only_functional_totals, by = join_by(label == OR_NAME))
+
+#format tree data (factor structure, OR, OR_group, LG common name)
+tr_data$structure &lt;- factor(tr_data$structure, 
+                            levels = c(&quot;A,B,C,D,E&quot;,
+                                       &quot;A1,A2,B,C,D,E&quot;,
+                                       &quot;A1,A2,BC,D,E&quot;,
+                                       &quot;A1,A2B,CD,E&quot;,
+                                       &quot;A1,A2,A3B,CD,E&quot;,
+                                       &quot;A1,A2,A3,A4B,CD,E&quot;,
+                                       &quot;A1,A2,A3,A4,A5B,CD,E&quot;,
+                                       &quot;A1,A2,A3,A4,A5B,C,D,E&quot;,
+                                       &quot;1,10,11,2,3,4,5,6,7,8,9&quot;),
+                            labels = c(&quot;A,B,C,D,E&quot;,
+                                       &quot;A1,A2,B,C,D,E&quot;,
+                                       &quot;A1,A2,BC,D,E&quot;,
+                                       &quot;A1,A2B,CD,E&quot;,
+                                       &quot;A1,A2,A3B,CD,E&quot;,
+                                       &quot;A1,A2,A3,A4B,CD,E&quot;,
+                                       &quot;A1,A2,A3,A4,A5B,CD,E&quot;,
+                                       &quot;A1,A2,A3,A4,A5B,C,D,E&quot;,
+                                       &quot;Orco&quot;))
+
+tr_data$OR &lt;- factor(tr_data$OR, levels = tr_data$OR)
+
+tr_data$OR_GROUP &lt;- factor(tr_data$OR_GROUP, levels = c(&quot;Orco&quot;, &quot;OR1&quot;, &quot;2A&quot;, &quot;2B&quot;, &quot;3&quot;, &quot;4&quot;, &quot;6&quot;)) 
+
+tr_data$LG_common_name &lt;- factor(tr_data$LG_common_name, levels = c(&quot;LG1&quot;, &quot;LG2&quot;, &quot;LG3a (X)&quot;, &quot;LG3b&quot;, &quot;LG4&quot;, &quot;LG5&quot;, &quot;LG6&quot;, &quot;LG7&quot;, &quot;LG8&quot;, &quot;LG9&quot;, &quot;LG10&quot;))</code></pre>
+</div>
+<div id="plot-the-tree" class="section level4">
+<h4>Plot the tree</h4>
+<pre class="r"><code>#plot tree
+p &lt;- ggtree(tree_reduced) %&lt;+% tr_data
+
+#add tip labels, group designations (color), and node labels to see which nodes to flip
+#p + geom_tiplab(size = 2) + 
+#  geom_tippoint(aes(fill = OR_GROUP), color = &quot;black&quot;, shape = 21, size = 2) +
+#  geom_text(aes(label = node), size = 2, vjust = -1, hjust = 1.2) +
+#  scale_fill_manual(values = c(&quot;#4E79A7&quot;,&quot;#E15759&quot;, &quot;#B6992D&quot;, &quot;#F28E2B&quot;, &quot;#B07AA1&quot;, &quot;#59A14F&quot;, &quot;#797067&quot;))
+
+#flip the 2B node to be next to 2A for ease of visualization
+p2 &lt;- flip(p, 105, 89)
+
+#plot flipped tree with labels and colors to check 
+#p2 + 
+#  geom_tiplab(size = 2, hjust = -0.1) + 
+#  geom_tippoint(aes(color = structure),  size = 1.5, alpha = 0.9) +
+#  scale_color_manual(values = c(&quot;#4E79A7&quot;,&quot;#E15759&quot;, &quot;#B6992D&quot;, &quot;#F28E2B&quot;, &quot;#B07AA1&quot;, &quot;#499894&quot;, &quot;#9D7660&quot;, &quot;#59A14F&quot;,&quot;#797067&quot;)) +
+#  theme(legend.position = &quot;right&quot;) +
+# xlim(0,10) +
+#  ylim(0, 83)
+
+#plot tree with structure labels at tips
+a &lt;- p2 + 
+  geom_tippoint(aes(color = structure),  size = 1.5, alpha = 0.9) +
+  scale_color_manual(values = c(&quot;#4E79A7&quot;,&quot;#E15759&quot;, &quot;#B6992D&quot;, &quot;#F28E2B&quot;, &quot;#B07AA1&quot;, &quot;#499894&quot;, &quot;#9D7660&quot;, &quot;#59A14F&quot;,&quot;#797067&quot;)) +
+  theme(legend.position = &quot;none&quot;) +
+  xlim(0,10) +
+  ylim(0,84) +
+  force_panelsizes(rows = unit(80, &quot;mm&quot;),
+                   cols = unit(60, &quot;mm&quot;))
+
+#get node values for labels
+#getMRCA(tree_reduced, c(&quot;PpyrOR6&quot;, &quot;PpyrOR2&quot;)) #group2A
+#getMRCA(tree_reduced, c(&quot;PpyrOR80&quot;, &quot;PpyrOR57&quot;)) #group2B
+#getMRCA(tree_reduced, c(&quot;PpyrOR91&quot;, &quot;PpyrOR89&quot;)) #group3
+#getMRCA(tree_reduced, c(&quot;PpyrOR83&quot;, &quot;PpyrOR86&quot;)) #group4
+#getMRCA(tree_reduced, c(&quot;PpyrOR96&quot;, &quot;PpyrOR99&quot;)) #group6
+
+#add cladelabels
+t &lt;- a + geom_cladelab(node=162, label=&quot;2A&quot;, align = TRUE, offset=0.9, barsize=1, fontsize=7) +
+geom_cladelab(node=105, label=&quot;2B&quot;, align = TRUE, offset=0.9, barsize=1, fontsize=7) + 
+  geom_cladelab(node=91, label=&quot;3&quot;, align = TRUE, offset=0.9, barsize=1, fontsize=7) +
+  geom_cladelab(node=97, label=&quot;4&quot;, align = TRUE, offset=0.9, barsize=1, fontsize=7) +
+  geom_cladelab(node=102, label=&quot;6&quot;, align = TRUE, offset=0.9, barsize=1, fontsize=7) +
+  geom_strip(&quot;PpyrOR1&quot;, &quot;PpyrOR1&quot;, label=&quot;OR1&quot;, align = TRUE, offset=-1.0, barsize=1, fontsize=3) +
+  annotate(&quot;segment&quot;, x = 3.45, y = 8.7, xend = 4.2, yend = 8.7, color = &quot;gray48&quot;, lty = &quot;1111&quot;, linewidth = 0.5) +
+  force_panelsizes(rows = unit(80, &quot;mm&quot;),
+                   cols = unit(60, &quot;mm&quot;))
+t + 
+  theme(legend.position = &quot;right&quot;)</code></pre>
+<p><img src="2025_01_15_Get_Exon_data_PpyrORs_files/figure-html/plot%20tree-1.png" width="672" /></p>
+<hr />
+</div>
+</div>
+<div id="what-do-the-exon-structures-look-like" class="section level3">
+<h3>What do the exon structures look like?</h3>
+<div id="all-structures" class="section level4">
+<h4>All structures</h4>
+<pre class="r"><code>#general datatable subset to focus on exons/CDS for plotting with gggenes
+big_OR_tibble_for_gene_diagrams &lt;- bigger_OR_tibble %&gt;% 
+  filter(feature != &quot;total&quot;) %&gt;% 
+  filter(suffix != &quot;CTE&quot; ) %&gt;%
+  filter(suffix != &quot;NTE&quot;) %&gt;%
+  filter(suffix != &quot;PSE&quot;) %&gt;%
+  filter(feature == &quot;exon&quot; | feature == &quot;CDS&quot;)
+
+#format the datatable (factor OR, structure)
+big_OR_tibble_for_gene_diagrams$OR &lt;- factor(big_OR_tibble_for_gene_diagrams$OR, 
+                                             levels = c(get_taxa_name(a)[1:83], &quot;Ppyr\\Orco&quot;), 
+                                             labels = get_taxa_name(a))
+
+big_OR_tibble_for_gene_diagrams$structure &lt;- factor(big_OR_tibble_for_gene_diagrams$structure, 
+                                                    levels = c(&quot;A,B,C,D,E&quot;,
+                                                             &quot;A1,A2,B,C,D,E&quot;,
+                                                             &quot;A1,A2,BC,D,E&quot;,
+                                                             &quot;A1,A2B,CD,E&quot;,
+                                                             &quot;A1,A2,A3B,CD,E&quot;,
+                                                             &quot;A1,A2,A3,A4B,CD,E&quot;,
+                                                             &quot;A1,A2,A3,A4,A5B,CD,E&quot;,
+                                                             &quot;A1,A2,A3,A4,A5B,C,D,E&quot;,
+                                                             &quot;1,10,11,2,3,4,5,6,7,8,9&quot;),
+                                                  labels = c(&quot;A,B,C,D,E&quot;,
+                                                             &quot;A1,A2,B,C,D,E&quot;,
+                                                             &quot;A1,A2,BC,D,E&quot;,
+                                                             &quot;A1,A2B,CD,E&quot;,
+                                                             &quot;A1,A2,A3B,CD,E&quot;,
+                                                             &quot;A1,A2,A3,A4B,CD,E&quot;,
+                                                             &quot;A1,A2,A3,A4,A5B,CD,E&quot;,
+                                                             &quot;A1,A2,A3,A4,A5B,C,D,E&quot;,
+                                                             &quot;Orco&quot;))
+
+#plot all exon structures
+b &lt;- ggplot(big_OR_tibble_for_gene_diagrams, aes(xmin=relative.start, xmax = relative.end, y = OR, fill = structure, color = structure, label = OR)) +
+  geom_gene_arrow(arrowhead_width = unit(.3, &quot;mm&quot;), arrowhead_height = unit(2, &quot;mm&quot;), arrow_body_height = unit(2, &quot;mm&quot;)) +
+  theme_genes() +
+  scale_y_discrete(limits=rev) +
+  scale_color_manual(values = c(&quot;#4E79A7&quot;,&quot;#E15759&quot;, &quot;#B6992D&quot;, &quot;#F28E2B&quot;, &quot;#B07AA1&quot;, &quot;#499894&quot;, &quot;#9D7660&quot;, &quot;#59A14F&quot;,&quot;#797067&quot;)) +
+  scale_fill_manual(values = c(&quot;#4E79A7&quot;,&quot;#E15759&quot;, &quot;#B6992D&quot;, &quot;#F28E2B&quot;, &quot;#B07AA1&quot;, &quot;#499894&quot;, &quot;#9D7660&quot;, &quot;#59A14F&quot;,&quot;#797067&quot;)) +
+  theme(legend.position = &quot;right&quot;, axis.title.y = element_blank(), axis.text.y = element_text(size = 7)) +
+  labs(fill = &quot;Exon structure&quot;, color = &quot;Exon structure&quot;, x = &quot;Position (bases)&quot;)  +
+      force_panelsizes(rows = unit(190, &quot;mm&quot;),
+                       cols = unit(100, &quot;mm&quot;))
+
+b</code></pre>
+<p><img src="2025_01_15_Get_Exon_data_PpyrORs_files/figure-html/gene%20diagram%20all-1.png" width="672" /></p>
+</div>
+<div id="example-structures" class="section level4">
+<h4>Example structures</h4>
+<pre class="r"><code>#get a subset to make exemplar gene diagrams
+big_OR_tibble_for_gene_diagrams_exemplars &lt;- big_OR_tibble_for_gene_diagrams %&gt;%
+  filter(OR == &quot;PpyrOR64&quot; | OR == &quot;PpyrOR27&quot; | OR == &quot;PpyrOR25&quot; | OR == &quot;PpyrOR93&quot; | OR == &quot;PpyrOR89&quot; | OR == &quot;PpyrOR6&quot; | OR == &quot;PpyrOR97&quot; | OR == &quot;PpyrOR9&quot;)
+
+#plot the subset, with labels
+    b2 &lt;- ggplot(big_OR_tibble_for_gene_diagrams_exemplars, aes(xmin=relative.start, xmax = relative.end, y = OR, fill = structure, label = gsub(&quot;Exon &quot;, &quot;&quot;, Feature_title))) +
+      geom_gene_arrow(arrowhead_width = unit(0, &quot;mm&quot;), arrowhead_height = unit(5, &quot;mm&quot;), arrow_body_height = unit(5, &quot;mm&quot;)) +
+      geom_gene_label(min.size = 1, padding.x = unit(0.1, &quot;mm&quot;), padding.y = unit(0.1, &quot;mm&quot;)) +
+      theme_genes() +
+      scale_y_discrete(limits=rev) +
+      scale_fill_manual(values = c(&quot;#4E79A7&quot;,&quot;#E15759&quot;, &quot;#B6992D&quot;, &quot;#F28E2B&quot;, &quot;#B07AA1&quot;, &quot;#499894&quot;, &quot;#9D7660&quot;, &quot;#59A14F&quot;,&quot;#797067&quot;)) +
+      theme(legend.position = &quot;none&quot;, axis.title.y = element_blank()) +
+      labs(fill = &quot;Exon structure&quot;, color = &quot;Exon structure&quot;) +
+      xlab(&quot;Position (bases)&quot;) +
+#      ylab(&quot;Exemplar&quot;) +
+      force_panelsizes(rows = unit(50, &quot;mm&quot;),
+                       cols = unit(85, &quot;mm&quot;))
+    
+b2</code></pre>
+<p><img src="2025_01_15_Get_Exon_data_PpyrORs_files/figure-html/example%20structures-1.png" width="672" /></p>
+<hr />
+</div>
+</div>
+<div id="main-text-fig-3-exon-structure-examples"
+class="section level3">
+<h3>Main text Fig 3: Exon structure (examples)</h3>
+<ul>
+<li>Finish editing in Adobe Illustrator</li>
+<li>See manuscript for final figure</li>
+</ul>
+<pre class="r"><code>#Figure 3 (finish editing in Adobe)
+#b2 / (c + t) + plot_annotation(tag_levels = &#39;a&#39;)
+#ggsave(&quot;Figure_3_Exon_structure_and_group_2025_1_15.svg&quot;, device = &quot;svg&quot;, width = 170, height = 170, units = &quot;mm&quot;)</code></pre>
+<hr />
+</div>
+<div id="supp-fig-s2-exon-structure-all" class="section level3">
+<h3>Supp Fig S2: Exon structure (all)</h3>
+<ul>
+<li>Finish editing in Adobe Illustrator</li>
+<li>See manuscript for final figure</li>
+</ul>
+<pre class="r"><code>#Figure S2
+#t + b + plot_annotation(tag_levels = &#39;a&#39;)
+#ggsave(&quot;Figure_S2_Exon_structure_and_group_2025_1_15.svg&quot;, device = &quot;svg&quot;, width = 400, height = 200, units = &quot;mm&quot;)</code></pre>
+<hr />
+</div>
+</div>
+<div id="intron-size" class="section level2 tabset">
+<h2 class="tabset">Intron size</h2>
+<ul>
+<li>Useful for OR prediction softwares (e.g. InsectOR)</li>
+</ul>
+<div id="format-data-1" class="section level3">
+<h3>Format data</h3>
+<pre class="r"><code>#get intron data together
+big_OR_tibble_introns &lt;- bigger_OR_tibble %&gt;% 
+  filter(feature != &quot;total&quot;) %&gt;% 
+  filter(suffix != &quot;CTE&quot; ) %&gt;%
+  filter(suffix != &quot;NTE&quot;) %&gt;%
+  filter(suffix != &quot;PSE&quot;) %&gt;%
+  filter(feature == &quot;intron&quot;)
+
+#format the data - get factors as desired (Feature title, OR group, structure)
+big_OR_tibble_introns$Feature_title &lt;- factor(big_OR_tibble_introns$Feature_title, levels = c(&quot;Intron 1&quot;, &quot;Intron 2&quot;, &quot;Intron 3&quot;, &quot;Intron 4&quot;, &quot;Intron 5&quot;, &quot;Intron 6&quot;, &quot;Intron 7&quot;, &quot;Intron 8&quot;, &quot;Intron 9&quot;, &quot;Intron 10&quot;))
+
+big_OR_tibble_introns$OR_GROUP &lt;- factor(big_OR_tibble_introns$OR_GROUP, levels = c(&quot;Orco&quot;, &quot;OR1&quot;, &quot;2A&quot;, &quot;2B&quot;, &quot;3&quot;, &quot;4&quot;, &quot;6&quot;), labels = c(&quot;Orco&quot;, &quot;OR1&quot;, &quot;Group 2A&quot;, &quot;Group 2B&quot;, &quot;Group 3&quot;, &quot;Group 4&quot;, &quot;Group 6&quot;))
+
+big_OR_tibble_introns$structure &lt;- factor(big_OR_tibble_introns$structure,
+                                          levels = c(&quot;A,B,C,D,E&quot;,
+                                                             &quot;A1,A2,B,C,D,E&quot;,
+                                                             &quot;A1,A2,BC,D,E&quot;,
+                                                             &quot;A1,A2B,CD,E&quot;,
+                                                             &quot;A1,A2,A3B,CD,E&quot;,
+                                                             &quot;A1,A2,A3,A4B,CD,E&quot;,
+                                                             &quot;A1,A2,A3,A4,A5B,CD,E&quot;,
+                                                             &quot;A1,A2,A3,A4,A5B,C,D,E&quot;,
+                                                             &quot;1,10,11,2,3,4,5,6,7,8,9&quot;),
+                                                  labels = c(&quot;A,B,C,D,E&quot;,
+                                                             &quot;A1,A2,B,C,D,E&quot;,
+                                                             &quot;A1,A2,BC,D,E&quot;,
+                                                             &quot;A1,A2B,CD,E&quot;,
+                                                             &quot;A1,A2,A3B,CD,E&quot;,
+                                                             &quot;A1,A2,A3,A4B,CD,E&quot;,
+                                                             &quot;A1,A2,A3,A4,A5B,CD,E&quot;,
+                                                             &quot;A1,A2,A3,A4,A5B,C,D,E&quot;,
+                                                             &quot;Orco&quot;))</code></pre>
+<p>Some stats of interest:</p>
+<ul>
+<li>Min intron length (bp) is 38</li>
+<li>Max intron length (bp) is 25152</li>
+<li>Mean intron length (bp) is 392</li>
+<li>Median intron length (bp) is 1601</li>
+</ul>
+<hr />
+</div>
+<div id="plot-histogram-of-intron-size-figure-s3"
+class="section level3">
+<h3>Plot: Histogram of intron size (Figure S3)</h3>
+<pre class="r"><code>#plot
+ggplot(big_OR_tibble_introns,(aes(x = length))) +
+  geom_histogram(alpha = 0.7, position = &quot;identity&quot;) +
+  scale_x_continuous(trans=&#39;log10&#39;) +
+  theme_classic() +
+  xlab(&quot;Length (bp)&quot;) +
+  ylab(&quot;Count&quot;) +
+  geom_vline(xintercept = median(big_OR_tibble_introns$length), color = &quot;#E15759&quot;, lty = &quot;dashed&quot;, linewidth = 1) +
+  annotate(&quot;text&quot;, x = 140, y = 150, label = &quot;Median intron length: 49 bp&quot;)</code></pre>
+<p><img src="2025_01_15_Get_Exon_data_PpyrORs_files/figure-html/intron%20histogram-1.png" width="672" /></p>
+<pre class="r"><code>#save plot
+#ggsave(&quot;Figure_S3_Intron_length_2025_1_15.svg&quot;, device = &quot;svg&quot;, width = 170, height = 170, units = &quot;mm&quot;)</code></pre>
+<hr />
+</div>
+<div id="plot-intron-size-by-group-and-structure"
+class="section level3">
+<h3>Plot: Intron size by group and structure</h3>
+<pre class="r"><code>#plot with separate subplots of different OR groups
+ggplot(big_OR_tibble_introns,(aes(x = length, fill = structure))) +
+  geom_histogram(alpha = 0.7, position = &quot;identity&quot;) +
+  scale_x_continuous(trans=&#39;log10&#39;) +
+  facet_wrap(~ OR_GROUP, scales = &quot;free_y&quot;) +
+  scale_fill_manual(values = c(&quot;#4E79A7&quot;,&quot;#E15759&quot;, &quot;#B6992D&quot;, &quot;#F28E2B&quot;, &quot;#B07AA1&quot;, &quot;#499894&quot;, &quot;#9D7660&quot;, &quot;#59A14F&quot;,&quot;#797067&quot;)) +
+  theme_bw() +
+  xlab(&quot;Length (bp)&quot;) +
+  ylab(&quot;Count&quot;)</code></pre>
+<p><img src="2025_01_15_Get_Exon_data_PpyrORs_files/figure-html/intron%20by%20group-1.png" width="672" /></p>
+<hr />
+</div>
+</div>
+<div id="or-location" class="section level2 tabset">
+<h2 class="tabset">OR location?</h2>
+<div id="where-are-ors-on-linkage-groups" class="section level3">
+<h3>Where are ORs on linkage groups?</h3>
+<div id="generate-data-table" class="section level4">
+<h4>Generate data table</h4>
+<pre class="r"><code>#add OR1 classification for PpyrOR1
+#now_fixed_in_supp_table
+#only_totals$OR_GROUP[which(only_totals$OR == &quot;PpyrOR1&quot;)] &lt;- &quot;OR1&quot;
+
+#get totals only and factor appropriately
+only_totals$OR_GROUP &lt;- factor(only_totals$OR_GROUP, levels = c(&quot;Orco&quot;, &quot;OR1&quot;, &quot;2A&quot;, &quot;2B&quot;, &quot;3&quot;, &quot;4&quot;, &quot;6&quot;))
+
+only_totals$LG_common_name &lt;- factor(only_totals$LG_common_name, levels = c(&quot;LG1&quot;, &quot;LG2&quot;, &quot;LG3a (X)&quot;, &quot;LG3b&quot;, &quot;LG4&quot;, &quot;LG5&quot;, &quot;LG6&quot;, &quot;LG7&quot;, &quot;LG8&quot;, &quot;LG9&quot;, &quot;LG10&quot;))
+
+
+only_totals$suffix &lt;-  factor(only_totals$suffix, levels = c(&quot;&quot;, &quot;NTE&quot;, &quot;PSE&quot;, &quot;CTE&quot;), labels = c(&quot;Full length&quot;, &quot;Partial&quot;, &quot;PSE&quot;, &quot;Partial&quot;))</code></pre>
+</div>
+<div id="plot-ors-on-linkage-groups" class="section level4">
+<h4>Plot: ORs on linkage groups?</h4>
+<pre class="r"><code>#define option for non-scientific axis notation
+options(scipen = 999)
+
+#make tibble of LGs and format it (factor LGs)
+LG_tibble &lt;- tibble(LG_common_name = levels(only_totals$LG_common_name), LG_length = c(70905644, 53657282, 22220000, 28664792, 50607672, 49173113, 47017841, 43653355, 37158542, 24427974, 20869423))
+
+LG_tibble$LG_common_name &lt;- factor(LG_tibble$LG_common_name, levels(only_totals$LG_common_name))
+
+#plot LG position
+d &lt;- ggplot(LG_tibble, aes(x = LG_common_name, y = LG_length)) +
+  geom_bar(stat = &quot;identity&quot;, color = &quot;black&quot;, fill = &quot;white&quot;) +
+  theme_classic() +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  scale_y_continuous(labels = scales::comma) +
+  ylab(&quot;Length (bp)&quot;) +
+  theme(axis.title.y = element_blank()) +
+  geom_jitter(data = only_totals, aes(x = LG_common_name, y = converted_midpoint, fill = OR_GROUP, color = OR_GROUP, shape = suffix), size = 2, alpha = 0.7, width = 0.4, height = 0) +
+  scale_shape_manual(values = c(21, 10, 8)) +
+  scale_fill_manual(values = c(&quot;#797067&quot;, &quot;#E15759&quot;, &quot;#B6992D&quot;, &quot;#4E79A7&quot;, &quot;#B07AA1&quot;, &quot;#F28E2B&quot;,&quot;#59A14F&quot;)) +
+  scale_color_manual(values = c(&quot;#797067&quot;, &quot;#E15759&quot;, &quot;#B6992D&quot;, &quot;#4E79A7&quot;, &quot;#B07AA1&quot;, &quot;#F28E2B&quot;,&quot;#59A14F&quot;)) + 
+  guides(shape = guide_legend(title = &quot;Type&quot;), color = guide_legend(title = &quot;Group&quot;), fill = guide_legend(title = &quot;Group&quot;)) +
+  force_panelsizes(rows = unit(85, &quot;mm&quot;),
+                   cols = unit(85, &quot;mm&quot;))
+d </code></pre>
+<p><img src="2025_01_15_Get_Exon_data_PpyrORs_files/figure-html/LG%20plot-1.png" width="672" /></p>
+<hr />
+</div>
+</div>
+<div id="how-many-ors-on-each-lg" class="section level3">
+<h3>How many ORs on each LG?</h3>
+<pre class="r"><code>#barplot
+e &lt;- ggplot(only_totals, aes(x = LG_common_name, fill = OR_GROUP)) +
+  geom_bar(stat = &quot;count&quot;) +
+  scale_fill_manual(values = c(&quot;#797067&quot;, &quot;#E15759&quot;, &quot;#B6992D&quot;, &quot;#4E79A7&quot;, &quot;#B07AA1&quot;, &quot;#F28E2B&quot;,&quot;#59A14F&quot;)) +
+#  scale_color_manual(values = &quot;black&quot;) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  theme(legend.position = &quot;none&quot;) +
+  xlab(&quot;&quot;) +
+  ylab(&quot;Count&quot;) +
+  force_panelsizes(rows = unit(42, &quot;mm&quot;),
+                   cols = unit(42, &quot;mm&quot;))
+
+e + 
+  theme(legend.position = &quot;right&quot;)</code></pre>
+<p><img src="2025_01_15_Get_Exon_data_PpyrORs_files/figure-html/number%20of%20ORs%20on%20each%20LG-1.png" width="672" /></p>
+<hr />
+</div>
+<div id="how-has-lg-location-diversified-across-the-or-phylogeny"
+class="section level3">
+<h3>How has LG location diversified across the OR phylogeny?</h3>
+<pre class="r"><code>#plot tree with structure labels at tips
+f &lt;- p2 + 
+#  geom_tiplab(size = 2, hjust = -0.1) + 
+  geom_tippoint(aes(color = LG_common_name),  size = 1.5, alpha = 0.9) +
+  scale_color_manual(values = c(&quot;#86BCB6&quot;, &quot;#5c6068&quot;,  &quot;#FABFD2&quot;, &quot;#ffbc79&quot;,&quot;#A0CBe8&quot;, &quot;#F1CE63&quot;, &quot;#FF9D9A&quot;, &quot;#d3d3d3&quot;,&quot;#D4A6C8&quot;, &quot;#8CD17D&quot;, &quot;#767f8b&quot;)) +
+  theme(legend.position = &quot;right&quot;) +
+  xlim(0,10) +
+  ylim(0, 84) +
+geom_cladelab(node=162, label=&quot;2A&quot;, align = TRUE, offset=0.9, barsize=1, fontsize=7) +
+geom_cladelab(node=105, label=&quot;2B&quot;, align = TRUE, offset=0.9, barsize=1, fontsize=7) + 
+  geom_cladelab(node=91, label=&quot;3&quot;, align = TRUE, offset=0.9, barsize=1, fontsize=7) +
+  geom_cladelab(node=97, label=&quot;4&quot;, align = TRUE, offset=0.9, barsize=1, fontsize=7) +
+  geom_cladelab(node=102, label=&quot;6&quot;, align = TRUE, offset=0.9, barsize=1, fontsize=7) +
+  geom_strip(&quot;PpyrOR1&quot;, &quot;PpyrOR1&quot;, label=&quot;OR1&quot;, align = TRUE, offset=-1.0, barsize=1, fontsize=3) +
+  annotate(&quot;segment&quot;, x = 3.5, y = 8.7, xend = 4.2, yend = 8.7, color = &quot;gray48&quot;, lty = &quot;1111&quot;, linewidth = 0.5) +
+#  xlim(0,7) +
+  force_panelsizes(rows = unit(80, &quot;mm&quot;),
+                   cols = unit(60, &quot;mm&quot;))
+f</code></pre>
+<p><img src="2025_01_15_Get_Exon_data_PpyrORs_files/figure-html/tree%20with%20LGs-1.png" width="672" /></p>
+</div>
+<div id="main-text-fig-4-ors-on-lgs" class="section level3">
+<h3>Main text Fig 4: ORs on LGs</h3>
+<ul>
+<li>See manuscript for final figure</li>
+</ul>
+<pre class="r"><code>#d / (e + f) + plot_annotation(tag_levels = &#39;a&#39;)
+#ggsave(&quot;Figure_4_LG_2025_1_15.svg&quot;, device = &quot;svg&quot;, width = 400, height = 200, units = &quot;mm&quot;)</code></pre>
+<hr />
+</div>
+</div>
+</div>
+<div id="housekeeping" class="section level1">
+<h1>Housekeeping</h1>
+<div id="saving-table" class="section level2">
+<h2>Saving table</h2>
+<pre class="r"><code>#write.table(bigger_OR_tibble, file = &quot;bigger_OR_tibble_2025_1_15.txt&quot;, sep = &quot;\t&quot;)</code></pre>
+</div>
+<div id="session-info" class="section level2">
+<h2>Session info</h2>
+<pre class="r"><code>sessionInfo()</code></pre>
+<pre><code>## R version 4.4.1 (2024-06-14)
+## Platform: aarch64-apple-darwin20
+## Running under: macOS Sonoma 14.7.4
+## 
+## Matrix products: default
+## BLAS:   /Library/Frameworks/R.framework/Versions/4.4-arm64/Resources/lib/libRblas.0.dylib 
+## LAPACK: /Library/Frameworks/R.framework/Versions/4.4-arm64/Resources/lib/libRlapack.dylib;  LAPACK version 3.12.0
+## 
+## locale:
+## [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+## 
+## time zone: America/New_York
+## tzcode source: internal
+## 
+## attached base packages:
+## [1] stats4    stats     graphics  grDevices utils     datasets  methods  
+## [8] base     
+## 
+## other attached packages:
+##  [1] gggenes_0.5.1               aplot_0.2.3                
+##  [3] scales_1.3.0                treeio_1.28.0              
+##  [5] ape_5.8                     ggtree_3.12.0              
+##  [7] REBEL_0.1.0                 ggh4x_0.2.8                
+##  [9] ggVennDiagram_1.5.2         data.table_1.16.4          
+## [11] ggpattern_1.1.1             dendextend_1.19.0          
+## [13] rgl_1.3.14                  stargazer_5.2.3            
+## [15] gt_0.11.1                   plotly_4.10.4              
+## [17] DT_0.33                     patchwork_1.3.0.9000       
+## [19] vsn_3.72.0                  hexbin_1.28.5              
+## [21] cowplot_1.1.3               edgeR_4.2.2                
+## [23] limma_3.60.6                tximeta_1.22.1             
+## [25] DESeq2_1.44.0               SummarizedExperiment_1.34.0
+## [27] Biobase_2.64.0              MatrixGenerics_1.16.0      
+## [29] matrixStats_1.4.1           GenomicRanges_1.56.2       
+## [31] GenomeInfoDb_1.40.1         IRanges_2.38.1             
+## [33] S4Vectors_0.42.1            BiocGenerics_0.50.0        
+## [35] datapasta_3.1.0             tximport_1.32.0            
+## [37] rhdf5_2.48.0                lubridate_1.9.4            
+## [39] forcats_1.0.0               stringr_1.5.1              
+## [41] dplyr_1.1.4                 purrr_1.0.2                
+## [43] readr_2.1.5                 tidyr_1.3.1                
+## [45] tibble_3.2.1                ggplot2_3.5.1              
+## [47] tidyverse_2.0.0             BiocManager_1.30.25        
+## 
+## loaded via a namespace (and not attached):
+##   [1] later_1.4.1              BiocIO_1.14.0            ggplotify_0.1.2         
+##   [4] bitops_1.0-9             filelock_1.0.3           preprocessCore_1.66.0   
+##   [7] XML_3.99-0.17            lifecycle_1.0.4          httr2_1.0.7             
+##  [10] sf_1.0-19                MASS_7.3-60.2            lattice_0.22-6          
+##  [13] vroom_1.6.5              ensembldb_2.28.1         crosstalk_1.2.1         
+##  [16] magrittr_2.0.3           sass_0.4.9               rmarkdown_2.29          
+##  [19] jquerylib_0.1.4          yaml_2.3.10              remotes_2.5.0           
+##  [22] httpuv_1.6.15            sessioninfo_1.2.2        pkgbuild_1.4.5          
+##  [25] DBI_1.2.3                abind_1.4-8              pkgload_1.4.0           
+##  [28] zlibbioc_1.50.0          AnnotationFilter_1.28.0  RCurl_1.98-1.16         
+##  [31] yulab.utils_0.1.8        rappdirs_0.3.3           GenomeInfoDbData_1.2.12 
+##  [34] tidytree_0.4.6           units_0.8-5              codetools_0.2-20        
+##  [37] DelayedArray_0.30.1      xml2_1.3.6               tidyselect_1.2.1        
+##  [40] UCSC.utils_1.0.0         farver_2.1.2             viridis_0.6.5           
+##  [43] BiocFileCache_2.12.0     base64enc_0.1-3          GenomicAlignments_1.40.0
+##  [46] jsonlite_1.8.9           e1071_1.7-16             ellipsis_0.3.2          
+##  [49] tools_4.4.1              progress_1.2.3           Rcpp_1.0.14             
+##  [52] glue_1.8.0               gridExtra_2.3            SparseArray_1.4.8       
+##  [55] xfun_0.50                usethis_3.1.0            withr_3.0.2             
+##  [58] fastmap_1.2.0            rhdf5filters_1.16.0      digest_0.6.37           
+##  [61] gridGraphics_0.5-1       timechange_0.3.0         R6_2.5.1                
+##  [64] mime_0.12                colorspace_2.1-1         biomaRt_2.60.1          
+##  [67] RSQLite_2.3.9            generics_0.1.3           class_7.3-22            
+##  [70] rtracklayer_1.64.0       prettyunits_1.2.0        httr_1.4.7              
+##  [73] htmlwidgets_1.6.4        S4Arrays_1.4.1           pkgconfig_2.0.3         
+##  [76] gtable_0.3.5             blob_1.2.4               XVector_0.44.0          
+##  [79] htmltools_0.5.8.1        profvis_0.4.0            ProtGenerics_1.36.0     
+##  [82] png_0.1-8                ggfun_0.1.8              knitr_1.49              
+##  [85] rstudioapi_0.17.1        tzdb_0.4.0               rjson_0.2.23            
+##  [88] nlme_3.1-166             curl_6.0.1               gridpattern_1.2.2       
+##  [91] proxy_0.4-27             cachem_1.1.0             KernSmooth_2.23-24      
+##  [94] BiocVersion_3.19.1       parallel_4.4.1           miniUI_0.1.1.1          
+##  [97] AnnotationDbi_1.66.0     restfulr_0.0.15          pillar_1.10.1           
+## [100] grid_4.4.1               vctrs_0.6.5              ggfittext_0.10.2        
+## [103] urlchecker_1.0.1         promises_1.3.2           dbplyr_2.5.0            
+## [106] xtable_1.8-4             evaluate_1.0.3           GenomicFeatures_1.56.0  
+## [109] cli_3.6.3                locfit_1.5-9.10          compiler_4.4.1          
+## [112] Rsamtools_2.20.0         rlang_1.1.4              crayon_1.5.3            
+## [115] labeling_0.4.3           classInt_0.4-10          affy_1.82.0             
+## [118] fs_1.6.5                 stringi_1.8.4            viridisLite_0.4.2       
+## [121] BiocParallel_1.38.0      txdbmaker_1.0.1          munsell_0.5.1           
+## [124] Biostrings_2.72.1        lazyeval_0.2.2           devtools_2.4.5          
+## [127] Matrix_1.7-0             hms_1.1.3                bit64_4.5.2             
+## [130] Rhdf5lib_1.26.0          KEGGREST_1.44.1          statmod_1.5.0           
+## [133] shiny_1.10.0             AnnotationHub_3.12.0     memoise_2.0.1           
+## [136] affyio_1.74.0            bslib_0.8.0              bit_4.5.0.1</code></pre>
+</div>
+</div>
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+<script>
+$(document).ready(function () {
+  window.initializeCodeFolding("hide" === "show");
+});
+</script>
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
