@@ -1,0 +1,381 @@
+---
+title: "Step 1: Read in and normalize data"
+author: "Sam Pring, Sarah Lower, Brian Vestal"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    theme: cerulean
+    toc: TRUE
+    toc_float:
+        collapsed: TRUE
+    code_folding: hide
+editor_options: 
+  chunk_output_type: console
+---
+
+**Goal: To read in data and check normalization**
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Ready the workspace
+## Load packages
+```{r load libraries, message=FALSE, warning=FALSE}
+#installation if necessary
+if (!require("BiocManager", quietly = TRUE)) {install.packages("BiocManager")}
+if (!requireNamespace("devtools", quietly = TRUE)) {install.packages("devtools")}
+if (!require("tidyverse")) install.packages("tidyverse")
+
+#BiocManager::install("rhdf5")
+#BiocManager::install("tximport")
+#BiocManager::install("DESeq2")
+#BiocManager::install("tximeta")
+#install.packages("tidyselect")
+#devtools::install_github("thomasp85/patchwork")
+
+#loading in the data
+library(rhdf5) # allows for the handling of hdf5 file formats
+library(tidyverse)
+library(tximport) # package for getting Salmon results into R
+library(datapasta) # allows for copy and pasting
+library(DESeq2)
+library(SummarizedExperiment)
+library(tximeta)
+
+#filtering and normalization
+#BiocManager::install("vsn")
+library(edgeR)
+library(matrixStats)
+library(cowplot)
+library(hexbin)
+library(vsn)
+library(dplyr)
+library(readr)
+
+#making pretty figures
+library(ggplot2)
+library(patchwork)
+```
+
+## Clear workspace
+```{r clear workspace}
+rm(list = ls())
+```
+
+---
+
+# Read in data
+
+  + Gene-level analysis
+  
+### Read in sample metadata
+```{r read in metadata}
+
+#read in sample metadata
+meta <- read.delim("study_design.txt", header = TRUE, as.is = TRUE)
+
+#make the SAMPLE column the rownames
+rownames(meta) <- meta$SAMPLE
+
+#add a names column (for lmerSeq later)
+meta$names <- meta$SAMPLE
+```
+
+### Import Salmon quant files 
+
+```{r check quant.sf existence}
+
+#Check that all sample quant.sf files from Salmon are present
+salmonfiles <- paste0(meta$FILE, "/quant.sf")
+names(salmonfiles) <- meta$SAMPLE
+stopifnot(all(file.exists(salmonfiles)))
+
+## Add a column "files" to the metadata table. This table must contain at least
+## two columns: "names" (see previous code chunk) and "files"
+coldata <- cbind(meta, quantfiles = salmonfiles, stringsAsFactors = FALSE)
+```
+
+```{r import quant.sf tximport, message = FALSE}
+
+#Import quantifications at the gene level using tximport 
+
+#get annotations for transcripts by loading file from ncbi ---- WAS EDITED TO MATCH ORs ADDED FROM Mitchell's ANNOTATION----
+annotation_file <- ("Ppyr_annotations_ORmodified_2025_02_20.tsv")
+
+Tx <- read_tsv(annotation_file, col_names = c("target_id", "gene_name", "name", "PpyrOR"), col_types = "cccc")
+
+Tx <- as_tibble(Tx)
+
+#transcript ID needs to be the first column in the dataframe
+Tx <- dplyr::select(Tx, "target_id", "gene_name")
+
+#import Salmon transcript counts into R using Tximport ----
+#import at gene level (txOut = FALSE), because transcript level analysis is mostly for differential transcript usage analysis - 
+Txi_gene <- tximport(salmonfiles, 
+                     type = "salmon",
+                     tx2gene = Tx,
+                     txOut = FALSE, #How does the result change if this = FALSE vs =TRUE? To analyze at transcript level -> TRUE
+                     countsFromAbundance = "lengthScaledTPM",
+                     ignoreTxVersion = FALSE) 
+```
+
+---
+
+# Generate summary statistics {.tabset}
+
+## Library summary stats
+```{r get descriptive statistics}
+
+#get abundance data separate to generate table later
+myTPM <- Txi_gene$abundance
+
+#get read count data separate to generate table later
+myCounts <- Txi_gene$counts
+
+#make table
+sample_summary <- tibble(Sample = colnames(Txi_gene$counts), TPM = colSums(myTPM), Counts = colSums(myCounts))
+knitr::kable(sample_summary, caption = "Gene-level analysis descriptive statistics by sample (library)") # of reads!
+```
+
+  + Transcripts per million (TPM) is the abundance data. All samples have the same TPM, since this accounts for differences in sequencing depth.
+  + Counts refers to the raw read counts from salmon pseudoalignment. The average number of reads per sample  is `r format(mean(colSums(myCounts)), big.mark=",")` with a standard deviation of `r format(sd(colSums(myCounts)), big.mark= ",")`.
+
+---
+
+## How many genes are in the analysis?
+```{r summary stats TPM}
+
+#capture sample labels from the design study file
+sampleLabels <- meta$SAMPLE
+
+#calculate summary stats for each transcript or gene, and add these to our data matrix
+myTPM.stats <- transform(myTPM, #'transform' modifies the data matrix (equivalent of Excel's '=')
+                           SD=rowSds(myTPM), #from the matrixStats package
+                         AVG=rowMeans(myTPM),#from the matrixStats package
+                         MED=rowMedians(myTPM))#from the matrixStats package
+#nrow(myTPM.stats) #still 22736
+```
+  + There are `r format(nrow(myTPM.stats), big.mark=",")` unique genomic locations (genes) in the TPM data file. 
+
+---
+
+## Is normalization needed? {-}
+```{r gene exp by sd tpm}
+
+#produce a scatter plot of the TPM data
+ggplot(myTPM.stats) + 
+  aes(x = SD, y = MED) +
+  geom_point(shape=19, size=3, alpha = 0.5) +
+    labs(y="Median", x = "Standard deviation",
+       title=" Transcripts per million (TPM) by gene",
+       subtitle="unfiltered, non-normalized data",
+       caption=paste0("produced on ", Sys.time())) +
+  theme_bw()
+```
+
+  + From the plot, as gene expression (the number of counts) increases, the standard deviation increases. Therefore, normalization is needed.
+
+---
+
+# Filtering {.tabset}
+## As-is
+### Visualizing gene expression across samples (no filtering, no normalization)
+```{r plot distribution of gene expression by sample}
+
+myDGEList <- DGEList(myCounts)
+
+#DEGList objects are a good R data file to consider saving to the working directory
+save(myDGEList, file = "myDGEList")
+
+#get log2 cpm
+cpm <- cpm(myDGEList) #just counts per million using edgeR
+log2.cpm <- cpm(myDGEList, log=TRUE) #gets counts per million values. log=TRUE is a logical argument that then returns log2 values
+
+# 'coerce' your data matrix to a dataframe so that you can use tidyverse tools on it
+log2.cpm.df <- as_tibble(log2.cpm, rownames = "geneID") #for gene analysis
+
+# use the tidy package to 'pivot' the dataframe (from wide to long)
+log2.cpm.df.pivot <- pivot_longer(log2.cpm.df, # dataframe to be pivoted
+                                  cols = SEL534ant:SEL672BL, # column names to be stored as a SINGLE variable
+                                  names_to = "samples", # name of that new variable (column)
+                                  values_to = "expression") # name of new variable (column) storing all the values (data)
+
+#plot the pivoted data
+a <- ggplot(log2.cpm.df.pivot) +
+  aes(x=samples, y=expression, fill=samples) +
+  geom_violin(trim = FALSE, show.legend = FALSE) +
+  stat_summary(fun = "median", 
+               geom = "point", 
+               shape = 95, 
+               size = 10, 
+               color = "black", 
+               show.legend = FALSE) +
+  labs(y="log2 expression", x = "sample",
+       title="Log2 Counts per Million (CPM)",
+       subtitle="unfiltered, non-normalized",
+       caption=paste0("produced on ", Sys.time())) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90))
+
+a
+##ggsave("gene_level_log2expression_unfiltered_non-normalized_SEL_2025_01_15.pdf", plot = a, dev="pdf")
+##ggsave("gene_level_log2expression_unfiltered_non-normalized_SEL_2025_01_15.png", plot = a, dev="png")
+```
+  + The violin plots show a tall distribution of log2cpm where there are many genes with low average expression across individual*tissue (bubble @ bottom). Want to filter these out to remove genes for which we likely don't have power to statistically test anyway. By decreasing the number of comparisons, we will increase our statistical power.
+
+---
+
+## Filtered
+### Exploration: How many genes aren't expressed at all (i.e. have "0" reads (aka counts) in all 14 samples)?
+```{r how many genes not expressed}
+table(rowSums(myDGEList$counts==0)>=14) #14 is total number of samples
+```
+  + We have 1,281 genes that were not expressed in any of our samples and 21,455 genes that were expressed in at least one sample.
+
+### Exploration: How many genes had more than 1 CPM (TRUE) in at least 3 samples (smallest treatment here is N = 3 - the females)?
+```{r how many genes expressed in at least 3 samples}
+table(rowSums(cpm>1)>=3)
+```
+  + From the table, 13,338 genes had more than 1 CPM in at least 3 samples - is only ~60% of original # of comparisons. Filtering to just these should increase our statistical power.
+
+### Retain genes with at least 1 CPM in 3 samples {-}
+```{r filter low expression}
+
+#Assign the imported count data to a variable
+counts <- Txi_gene$counts
+
+#get cpm using edgeR package
+cpm_counts <- edgeR::cpm(counts)
+cpm_more1 <- apply(cpm_counts, 1, function(x) sum(x>1)) #calc total samples each gene has a cpm > 1
+idx_keep <- which(cpm_more1>=3) # 3 as the smallest group is females (n = 3)
+counts <- counts[idx_keep,]
+
+#get cpm, log2 transform, and plot
+myDGEList_filtered <- DGEList(counts)
+
+#DEGList objects are a good R data file to consider saving to the working directory
+save(myDGEList_filtered, file = "myDGEList_filtered")
+
+#get log2 cpm
+cpm.filtered <- cpm(myDGEList_filtered) #just counts per million using edgeR
+log2.cpm.filtered <- cpm(myDGEList_filtered, log=TRUE) #gets counts per million values. log=TRUE is a logical argument that then returns log2 values
+
+# 'coerce' your data matrix to a dataframe so that you can use tidyverse tools on it
+log2.cpm.filtered.df <- as_tibble(log2.cpm.filtered, rownames = "geneID") #for gene analysis
+
+# use the tidy package to 'pivot' the dataframe (from wide to long)
+log2.cpm.filtered.df.pivot <- pivot_longer(log2.cpm.filtered.df, # dataframe to be pivoted
+                                  cols = SEL534ant:SEL672BL, # column names to be stored as a SINGLE variable
+                                  names_to = "samples", # name of that new variable (column)
+                                  values_to = "expression") # name of new variable (column) storing all the values (data)
+
+#plot the pivoted data
+b <- ggplot(log2.cpm.filtered.df.pivot) +
+  aes(x=samples, y=expression, fill=samples) +
+  geom_violin(trim = FALSE, show.legend = FALSE) +
+  stat_summary(fun = "median", 
+               geom = "point", 
+               shape = 95, 
+               size = 10, 
+               color = "black", 
+               show.legend = FALSE) +
+  labs(y="log2 expression", x = "sample",
+       title="Log2 Counts per Million (CPM)",
+       subtitle="filtered, non-normalized",
+       caption=paste0("produced on ", Sys.time())) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90))
+
+b
+##ggsave("gene_level_log2expression_filtered_non-normalized_SEL_2025_01_15.pdf", plot = b, dev="pdf")
+##ggsave("gene_level_log2expression_filtered_non-normalized_SEL_2025_01_15.png", plot = b, dev="png")
+```
+
+  + Filtering removes a lot of the "bubble" of lowly expressed genes at the bottom
+
+---
+
+# Normalization
+
+  + Testing standard log2 + correction vs vst stabilization
+
+### Define the experimental factors
+```{r define experiment factors}
+
+individual <- factor(coldata$INDIVIDUAL, levels = c("SEL534", "SEL535", "SEL536", "SEL543", "SEL562", "SEL627", "SEL672")) #because ant and leg from same individual they are not independent
+sex <- factor(coldata$SEX, levels = c("M", "F")) #because there are sex differences
+tissue <- factor(coldata$TISSUE, levels=c("antenna", "leg")) #because there are tissue differences
+
+tissue <- relevel(tissue, "leg") # relevel to "base-line" group
+sex <- relevel(sex, "F")
+```
+
+### Create model matrix, run DESeq, vst stabilizing transformation
+```{r model matrix, message = FALSE}
+
+#define the model.matrix
+design <- model.matrix(~sex*tissue, coldata)
+#design <- model.matrix(~sex + tissue, filter.coldata) 
+
+dds <- DESeqDataSetFromMatrix(countData = round(counts),
+                              colData = coldata,
+                              design = design)
+
+dds <- DESeq(dds)
+vsd.fixed <- varianceStabilizingTransformation(dds, blind=F)
+vst_expr <- as.data.frame(assay(vsd.fixed), rownames = TRUE)
+vst_expr$geneID <- rownames(vst_expr)
+
+#save data as a table
+#write_tsv(vst_expr, "./variance_stabilized_counts_2025_02_20.tsv")
+
+#rlog transform
+#rld <- rlog(dds, blind=FALSE)
+```
+
+### Check that vst stabilization is more appropriate compared to log2 transformation
+```{r check vst appropriate, warning = FALSE}
+
+df <- bind_rows(
+  as_tibble(log2(counts(dds, normalized=TRUE)[, 1:2])) %>%
+    mutate(transformation = "log2"),
+  as_tibble(assay(vsd.fixed)[, 1:2]) %>% mutate(transformation = "vst"))
+  
+colnames(df)[1:2] <- c("x", "y")  
+
+#lvls <- c("log2", "vst", "rlog")
+#df$transformation <- factor(df$transformation, levels=lvls)
+
+#ggplot(df, aes(x = x, y = y)) + geom_hex(bins = 80) +
+#  coord_fixed() + facet_grid( . ~ transformation) 
+
+#meanSdPlot(assay(dds)) #not necessary to plot raw data
+
+ntd <- normTransform(dds)
+```
+
+#### log2 mean sd plot
+```{r log2 mean sd}
+c <- meanSdPlot(assay(ntd))$gg
+```
+
+
+#### variance stabilized mean sd plot
+```{r vst mean sd}
+d <- meanSdPlot(assay(vsd.fixed))$gg
+#e <- meanSdPlot(assay(rld))$gg
+
+#plot_grid(c,d,e, labels = c('c', 'd', 'e'), label_size = 12, ncol = 1, align = "hv")
+#plot_grid(c,d, labels = c('c', 'd'), label_size = 12, ncol = 1, align = "hv") #not needed because mean/sd plots printed to screen when call function
+```
+
+  + Looking at the plots, conducting a variance stabilizing transformation looks more appropriate than a log2 + constant transformation of the count data.
+
+---
+
+# Session info
+```{r}
+sessionInfo()
+```
+

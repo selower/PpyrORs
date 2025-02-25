@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="Sam Pring, Sarah Lower, Brian Vestal" />
+
+<meta name="date" content="2025-02-25" />
+
+<title>Step 1: Read in and normalize data</title>
+
+<script src="site_libs/header-attrs-2.29/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cerulean.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<script src="site_libs/navigation-1.1/codefolding.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+<style type="text/css">
+.code-folding-btn { margin-bottom: 4px; }
+</style>
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">P. pyralis odorant receptor evolution and expression</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li>
+  <a href="2025_01_15_Get_Exon_data_PpyrORs.html">Genomic location and exon structure analysis</a>
+</li>
+<li>
+  <a href="2024_10_16_Step1_Read_normalize_data.html">DE expression: Step 1 Normalizing the data</a>
+</li>
+<li>
+  <a href="2024_10_22_Step2_Multivariate_analysis_SEL.html">DE expression: Step 2 Investigating sources of variation</a>
+</li>
+<li>
+  <a href="2024_11_04_Step3_DE_analysis.html">DE expression: Step 3 Differential expression</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+<div class="btn-group pull-right float-right">
+<button type="button" class="btn btn-default btn-xs btn-secondary btn-sm dropdown-toggle" data-toggle="dropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span>Code</span> <span class="caret"></span></button>
+<ul class="dropdown-menu dropdown-menu-right" style="min-width: 50px;">
+<li><a id="rmd-show-all-code" href="#">Show All Code</a></li>
+<li><a id="rmd-hide-all-code" href="#">Hide All Code</a></li>
+</ul>
+</div>
+
+
+
+<h1 class="title toc-ignore">Step 1: Read in and normalize data</h1>
+<h4 class="author">Sam Pring, Sarah Lower, Brian Vestal</h4>
+<h4 class="date">2025-02-25</h4>
+
+</div>
+
+
+<p><strong>Goal: To read in data and check normalization</strong></p>
+<div id="ready-the-workspace" class="section level1">
+<h1>Ready the workspace</h1>
+<div id="load-packages" class="section level2">
+<h2>Load packages</h2>
+<pre class="r"><code>#installation if necessary
+if (!require(&quot;BiocManager&quot;, quietly = TRUE)) {install.packages(&quot;BiocManager&quot;)}
+if (!requireNamespace(&quot;devtools&quot;, quietly = TRUE)) {install.packages(&quot;devtools&quot;)}
+if (!require(&quot;tidyverse&quot;)) install.packages(&quot;tidyverse&quot;)
+
+#BiocManager::install(&quot;rhdf5&quot;)
+#BiocManager::install(&quot;tximport&quot;)
+#BiocManager::install(&quot;DESeq2&quot;)
+#BiocManager::install(&quot;tximeta&quot;)
+#install.packages(&quot;tidyselect&quot;)
+#devtools::install_github(&quot;thomasp85/patchwork&quot;)
+
+#loading in the data
+library(rhdf5) # allows for the handling of hdf5 file formats
+library(tidyverse)
+library(tximport) # package for getting Salmon results into R
+library(datapasta) # allows for copy and pasting
+library(DESeq2)
+library(SummarizedExperiment)
+library(tximeta)
+
+#filtering and normalization
+#BiocManager::install(&quot;vsn&quot;)
+library(edgeR)
+library(matrixStats)
+library(cowplot)
+library(hexbin)
+library(vsn)
+library(dplyr)
+library(readr)
+
+#making pretty figures
+library(ggplot2)
+library(patchwork)</code></pre>
+</div>
+<div id="clear-workspace" class="section level2">
+<h2>Clear workspace</h2>
+<pre class="r"><code>rm(list = ls())</code></pre>
+<hr />
+</div>
+</div>
+<div id="read-in-data" class="section level1">
+<h1>Read in data</h1>
+<ul>
+<li>Gene-level analysis</li>
+</ul>
+<div id="read-in-sample-metadata" class="section level3">
+<h3>Read in sample metadata</h3>
+<pre class="r"><code>#read in sample metadata
+meta &lt;- read.delim(&quot;study_design.txt&quot;, header = TRUE, as.is = TRUE)
+
+#make the SAMPLE column the rownames
+rownames(meta) &lt;- meta$SAMPLE
+
+#add a names column (for lmerSeq later)
+meta$names &lt;- meta$SAMPLE</code></pre>
+</div>
+<div id="import-salmon-quant-files" class="section level3">
+<h3>Import Salmon quant files</h3>
+<pre class="r"><code>#Check that all sample quant.sf files from Salmon are present
+salmonfiles &lt;- paste0(meta$FILE, &quot;/quant.sf&quot;)
+names(salmonfiles) &lt;- meta$SAMPLE
+stopifnot(all(file.exists(salmonfiles)))
+
+## Add a column &quot;files&quot; to the metadata table. This table must contain at least
+## two columns: &quot;names&quot; (see previous code chunk) and &quot;files&quot;
+coldata &lt;- cbind(meta, quantfiles = salmonfiles, stringsAsFactors = FALSE)</code></pre>
+<pre class="r"><code>#Import quantifications at the gene level using tximport 
+
+#get annotations for transcripts by loading file from ncbi ---- WAS EDITED TO MATCH ORs ADDED FROM Mitchell&#39;s ANNOTATION----
+annotation_file &lt;- (&quot;Ppyr_annotations_ORmodified_2025_02_20.tsv&quot;)
+
+Tx &lt;- read_tsv(annotation_file, col_names = c(&quot;target_id&quot;, &quot;gene_name&quot;, &quot;name&quot;, &quot;PpyrOR&quot;), col_types = &quot;cccc&quot;)
+
+Tx &lt;- as_tibble(Tx)
+
+#transcript ID needs to be the first column in the dataframe
+Tx &lt;- dplyr::select(Tx, &quot;target_id&quot;, &quot;gene_name&quot;)
+
+#import Salmon transcript counts into R using Tximport ----
+#import at gene level (txOut = FALSE), because transcript level analysis is mostly for differential transcript usage analysis - 
+Txi_gene &lt;- tximport(salmonfiles, 
+                     type = &quot;salmon&quot;,
+                     tx2gene = Tx,
+                     txOut = FALSE, #How does the result change if this = FALSE vs =TRUE? To analyze at transcript level -&gt; TRUE
+                     countsFromAbundance = &quot;lengthScaledTPM&quot;,
+                     ignoreTxVersion = FALSE) </code></pre>
+<hr />
+</div>
+</div>
+<div id="generate-summary-statistics" class="section level1 tabset">
+<h1 class="tabset">Generate summary statistics</h1>
+<div id="library-summary-stats" class="section level2">
+<h2>Library summary stats</h2>
+<pre class="r"><code>#get abundance data separate to generate table later
+myTPM &lt;- Txi_gene$abundance
+
+#get read count data separate to generate table later
+myCounts &lt;- Txi_gene$counts
+
+#make table
+sample_summary &lt;- tibble(Sample = colnames(Txi_gene$counts), TPM = colSums(myTPM), Counts = colSums(myCounts))
+knitr::kable(sample_summary, caption = &quot;Gene-level analysis descriptive statistics by sample (library)&quot;) # of reads!</code></pre>
+<table>
+<caption>Gene-level analysis descriptive statistics by sample
+(library)</caption>
+<thead>
+<tr class="header">
+<th align="left">Sample</th>
+<th align="right">TPM</th>
+<th align="right">Counts</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">SEL534ant</td>
+<td align="right">1e+06</td>
+<td align="right">36678673</td>
+</tr>
+<tr class="even">
+<td align="left">SEL534BL</td>
+<td align="right">1e+06</td>
+<td align="right">33625793</td>
+</tr>
+<tr class="odd">
+<td align="left">SEL535ant</td>
+<td align="right">1e+06</td>
+<td align="right">32063775</td>
+</tr>
+<tr class="even">
+<td align="left">SEL535BL</td>
+<td align="right">1e+06</td>
+<td align="right">40562316</td>
+</tr>
+<tr class="odd">
+<td align="left">SEL536ant</td>
+<td align="right">1e+06</td>
+<td align="right">44380348</td>
+</tr>
+<tr class="even">
+<td align="left">SEL536BL</td>
+<td align="right">1e+06</td>
+<td align="right">26046111</td>
+</tr>
+<tr class="odd">
+<td align="left">SEL543ant</td>
+<td align="right">1e+06</td>
+<td align="right">35854274</td>
+</tr>
+<tr class="even">
+<td align="left">SEL543BL</td>
+<td align="right">1e+06</td>
+<td align="right">33218253</td>
+</tr>
+<tr class="odd">
+<td align="left">SEL562ant</td>
+<td align="right">1e+06</td>
+<td align="right">34616279</td>
+</tr>
+<tr class="even">
+<td align="left">SEL562BL</td>
+<td align="right">1e+06</td>
+<td align="right">27888370</td>
+</tr>
+<tr class="odd">
+<td align="left">SEL627ant</td>
+<td align="right">1e+06</td>
+<td align="right">28288280</td>
+</tr>
+<tr class="even">
+<td align="left">SEL627BL</td>
+<td align="right">1e+06</td>
+<td align="right">36033857</td>
+</tr>
+<tr class="odd">
+<td align="left">SEL672ant</td>
+<td align="right">1e+06</td>
+<td align="right">29926828</td>
+</tr>
+<tr class="even">
+<td align="left">SEL672BL</td>
+<td align="right">1e+06</td>
+<td align="right">30467849</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Transcripts per million (TPM) is the abundance data. All samples
+have the same TPM, since this accounts for differences in sequencing
+depth.</li>
+<li>Counts refers to the raw read counts from salmon pseudoalignment.
+The average number of reads per sample is 33,546,500 with a standard
+deviation of 5,037,348.</li>
+</ul>
+<hr />
+</div>
+<div id="how-many-genes-are-in-the-analysis" class="section level2">
+<h2>How many genes are in the analysis?</h2>
+<pre class="r"><code>#capture sample labels from the design study file
+sampleLabels &lt;- meta$SAMPLE
+
+#calculate summary stats for each transcript or gene, and add these to our data matrix
+myTPM.stats &lt;- transform(myTPM, #&#39;transform&#39; modifies the data matrix (equivalent of Excel&#39;s &#39;=&#39;)
+                           SD=rowSds(myTPM), #from the matrixStats package
+                         AVG=rowMeans(myTPM),#from the matrixStats package
+                         MED=rowMedians(myTPM))#from the matrixStats package
+#nrow(myTPM.stats) #still 22736</code></pre>
+<ul>
+<li>There are 22,736 unique genomic locations (genes) in the TPM data
+file.</li>
+</ul>
+<hr />
+</div>
+<div id="is-normalization-needed" class="section level2 unnumbered">
+<h2 class="unnumbered">Is normalization needed?</h2>
+<pre class="r"><code>#produce a scatter plot of the TPM data
+ggplot(myTPM.stats) + 
+  aes(x = SD, y = MED) +
+  geom_point(shape=19, size=3, alpha = 0.5) +
+    labs(y=&quot;Median&quot;, x = &quot;Standard deviation&quot;,
+       title=&quot; Transcripts per million (TPM) by gene&quot;,
+       subtitle=&quot;unfiltered, non-normalized data&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+  theme_bw()</code></pre>
+<p><img src="2024_10_16_Step1_Read_normalize_data_files/figure-html/gene%20exp%20by%20sd%20tpm-1.png" width="672" /></p>
+<ul>
+<li>From the plot, as gene expression (the number of counts) increases,
+the standard deviation increases. Therefore, normalization is
+needed.</li>
+</ul>
+<hr />
+</div>
+</div>
+<div id="filtering" class="section level1 tabset">
+<h1 class="tabset">Filtering</h1>
+<div id="as-is" class="section level2">
+<h2>As-is</h2>
+<div
+id="visualizing-gene-expression-across-samples-no-filtering-no-normalization"
+class="section level3">
+<h3>Visualizing gene expression across samples (no filtering, no
+normalization)</h3>
+<pre class="r"><code>myDGEList &lt;- DGEList(myCounts)
+
+#DEGList objects are a good R data file to consider saving to the working directory
+save(myDGEList, file = &quot;myDGEList&quot;)
+
+#get log2 cpm
+cpm &lt;- cpm(myDGEList) #just counts per million using edgeR
+log2.cpm &lt;- cpm(myDGEList, log=TRUE) #gets counts per million values. log=TRUE is a logical argument that then returns log2 values
+
+# &#39;coerce&#39; your data matrix to a dataframe so that you can use tidyverse tools on it
+log2.cpm.df &lt;- as_tibble(log2.cpm, rownames = &quot;geneID&quot;) #for gene analysis
+
+# use the tidy package to &#39;pivot&#39; the dataframe (from wide to long)
+log2.cpm.df.pivot &lt;- pivot_longer(log2.cpm.df, # dataframe to be pivoted
+                                  cols = SEL534ant:SEL672BL, # column names to be stored as a SINGLE variable
+                                  names_to = &quot;samples&quot;, # name of that new variable (column)
+                                  values_to = &quot;expression&quot;) # name of new variable (column) storing all the values (data)
+
+#plot the pivoted data
+a &lt;- ggplot(log2.cpm.df.pivot) +
+  aes(x=samples, y=expression, fill=samples) +
+  geom_violin(trim = FALSE, show.legend = FALSE) +
+  stat_summary(fun = &quot;median&quot;, 
+               geom = &quot;point&quot;, 
+               shape = 95, 
+               size = 10, 
+               color = &quot;black&quot;, 
+               show.legend = FALSE) +
+  labs(y=&quot;log2 expression&quot;, x = &quot;sample&quot;,
+       title=&quot;Log2 Counts per Million (CPM)&quot;,
+       subtitle=&quot;unfiltered, non-normalized&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90))
+
+a</code></pre>
+<p><img src="2024_10_16_Step1_Read_normalize_data_files/figure-html/plot%20distribution%20of%20gene%20expression%20by%20sample-1.png" width="672" /></p>
+<pre class="r"><code>##ggsave(&quot;gene_level_log2expression_unfiltered_non-normalized_SEL_2025_01_15.pdf&quot;, plot = a, dev=&quot;pdf&quot;)
+##ggsave(&quot;gene_level_log2expression_unfiltered_non-normalized_SEL_2025_01_15.png&quot;, plot = a, dev=&quot;png&quot;)</code></pre>
+<ul>
+<li>The violin plots show a tall distribution of log2cpm where there are
+many genes with low average expression across individual*tissue (bubble
+@ bottom). Want to filter these out to remove genes for which we likely
+don’t have power to statistically test anyway. By decreasing the number
+of comparisons, we will increase our statistical power.</li>
+</ul>
+<hr />
+</div>
+</div>
+<div id="filtered" class="section level2">
+<h2>Filtered</h2>
+<div
+id="exploration-how-many-genes-arent-expressed-at-all-i.e.-have-0-reads-aka-counts-in-all-14-samples"
+class="section level3">
+<h3>Exploration: How many genes aren’t expressed at all (i.e. have “0”
+reads (aka counts) in all 14 samples)?</h3>
+<pre class="r"><code>table(rowSums(myDGEList$counts==0)&gt;=14) #14 is total number of samples</code></pre>
+<pre><code>## 
+## FALSE  TRUE 
+## 21455  1281</code></pre>
+<ul>
+<li>We have 1,281 genes that were not expressed in any of our samples
+and 21,455 genes that were expressed in at least one sample.</li>
+</ul>
+</div>
+<div
+id="exploration-how-many-genes-had-more-than-1-cpm-true-in-at-least-3-samples-smallest-treatment-here-is-n-3---the-females"
+class="section level3">
+<h3>Exploration: How many genes had more than 1 CPM (TRUE) in at least 3
+samples (smallest treatment here is N = 3 - the females)?</h3>
+<pre class="r"><code>table(rowSums(cpm&gt;1)&gt;=3)</code></pre>
+<pre><code>## 
+## FALSE  TRUE 
+##  9398 13338</code></pre>
+<ul>
+<li>From the table, 13,338 genes had more than 1 CPM in at least 3
+samples - is only ~60% of original # of comparisons. Filtering to just
+these should increase our statistical power.</li>
+</ul>
+</div>
+<div id="retain-genes-with-at-least-1-cpm-in-3-samples"
+class="section level3 unnumbered">
+<h3 class="unnumbered">Retain genes with at least 1 CPM in 3
+samples</h3>
+<pre class="r"><code>#Assign the imported count data to a variable
+counts &lt;- Txi_gene$counts
+
+#get cpm using edgeR package
+cpm_counts &lt;- edgeR::cpm(counts)
+cpm_more1 &lt;- apply(cpm_counts, 1, function(x) sum(x&gt;1)) #calc total samples each gene has a cpm &gt; 1
+idx_keep &lt;- which(cpm_more1&gt;=3) # 3 as the smallest group is females (n = 3)
+counts &lt;- counts[idx_keep,]
+
+#get cpm, log2 transform, and plot
+myDGEList_filtered &lt;- DGEList(counts)
+
+#DEGList objects are a good R data file to consider saving to the working directory
+save(myDGEList_filtered, file = &quot;myDGEList_filtered&quot;)
+
+#get log2 cpm
+cpm.filtered &lt;- cpm(myDGEList_filtered) #just counts per million using edgeR
+log2.cpm.filtered &lt;- cpm(myDGEList_filtered, log=TRUE) #gets counts per million values. log=TRUE is a logical argument that then returns log2 values
+
+# &#39;coerce&#39; your data matrix to a dataframe so that you can use tidyverse tools on it
+log2.cpm.filtered.df &lt;- as_tibble(log2.cpm.filtered, rownames = &quot;geneID&quot;) #for gene analysis
+
+# use the tidy package to &#39;pivot&#39; the dataframe (from wide to long)
+log2.cpm.filtered.df.pivot &lt;- pivot_longer(log2.cpm.filtered.df, # dataframe to be pivoted
+                                  cols = SEL534ant:SEL672BL, # column names to be stored as a SINGLE variable
+                                  names_to = &quot;samples&quot;, # name of that new variable (column)
+                                  values_to = &quot;expression&quot;) # name of new variable (column) storing all the values (data)
+
+#plot the pivoted data
+b &lt;- ggplot(log2.cpm.filtered.df.pivot) +
+  aes(x=samples, y=expression, fill=samples) +
+  geom_violin(trim = FALSE, show.legend = FALSE) +
+  stat_summary(fun = &quot;median&quot;, 
+               geom = &quot;point&quot;, 
+               shape = 95, 
+               size = 10, 
+               color = &quot;black&quot;, 
+               show.legend = FALSE) +
+  labs(y=&quot;log2 expression&quot;, x = &quot;sample&quot;,
+       title=&quot;Log2 Counts per Million (CPM)&quot;,
+       subtitle=&quot;filtered, non-normalized&quot;,
+       caption=paste0(&quot;produced on &quot;, Sys.time())) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90))
+
+b</code></pre>
+<p><img src="2024_10_16_Step1_Read_normalize_data_files/figure-html/filter%20low%20expression-1.png" width="672" /></p>
+<pre class="r"><code>##ggsave(&quot;gene_level_log2expression_filtered_non-normalized_SEL_2025_01_15.pdf&quot;, plot = b, dev=&quot;pdf&quot;)
+##ggsave(&quot;gene_level_log2expression_filtered_non-normalized_SEL_2025_01_15.png&quot;, plot = b, dev=&quot;png&quot;)</code></pre>
+<ul>
+<li>Filtering removes a lot of the “bubble” of lowly expressed genes at
+the bottom</li>
+</ul>
+<hr />
+</div>
+</div>
+</div>
+<div id="normalization" class="section level1">
+<h1>Normalization</h1>
+<ul>
+<li>Testing standard log2 + correction vs vst stabilization</li>
+</ul>
+<div id="define-the-experimental-factors" class="section level3">
+<h3>Define the experimental factors</h3>
+<pre class="r"><code>individual &lt;- factor(coldata$INDIVIDUAL, levels = c(&quot;SEL534&quot;, &quot;SEL535&quot;, &quot;SEL536&quot;, &quot;SEL543&quot;, &quot;SEL562&quot;, &quot;SEL627&quot;, &quot;SEL672&quot;)) #because ant and leg from same individual they are not independent
+sex &lt;- factor(coldata$SEX, levels = c(&quot;M&quot;, &quot;F&quot;)) #because there are sex differences
+tissue &lt;- factor(coldata$TISSUE, levels=c(&quot;antenna&quot;, &quot;leg&quot;)) #because there are tissue differences
+
+tissue &lt;- relevel(tissue, &quot;leg&quot;) # relevel to &quot;base-line&quot; group
+sex &lt;- relevel(sex, &quot;F&quot;)</code></pre>
+</div>
+<div id="create-model-matrix-run-deseq-vst-stabilizing-transformation"
+class="section level3">
+<h3>Create model matrix, run DESeq, vst stabilizing transformation</h3>
+<pre class="r"><code>#define the model.matrix
+design &lt;- model.matrix(~sex*tissue, coldata)
+#design &lt;- model.matrix(~sex + tissue, filter.coldata) 
+
+dds &lt;- DESeqDataSetFromMatrix(countData = round(counts),
+                              colData = coldata,
+                              design = design)
+
+dds &lt;- DESeq(dds)
+vsd.fixed &lt;- varianceStabilizingTransformation(dds, blind=F)
+vst_expr &lt;- as.data.frame(assay(vsd.fixed), rownames = TRUE)
+vst_expr$geneID &lt;- rownames(vst_expr)
+
+#save data as a table
+#write_tsv(vst_expr, &quot;./variance_stabilized_counts_2025_02_20.tsv&quot;)
+
+#rlog transform
+#rld &lt;- rlog(dds, blind=FALSE)</code></pre>
+</div>
+<div
+id="check-that-vst-stabilization-is-more-appropriate-compared-to-log2-transformation"
+class="section level3">
+<h3>Check that vst stabilization is more appropriate compared to log2
+transformation</h3>
+<pre class="r"><code>df &lt;- bind_rows(
+  as_tibble(log2(counts(dds, normalized=TRUE)[, 1:2])) %&gt;%
+    mutate(transformation = &quot;log2&quot;),
+  as_tibble(assay(vsd.fixed)[, 1:2]) %&gt;% mutate(transformation = &quot;vst&quot;))
+  
+colnames(df)[1:2] &lt;- c(&quot;x&quot;, &quot;y&quot;)  
+
+#lvls &lt;- c(&quot;log2&quot;, &quot;vst&quot;, &quot;rlog&quot;)
+#df$transformation &lt;- factor(df$transformation, levels=lvls)
+
+#ggplot(df, aes(x = x, y = y)) + geom_hex(bins = 80) +
+#  coord_fixed() + facet_grid( . ~ transformation) 
+
+#meanSdPlot(assay(dds)) #not necessary to plot raw data
+
+ntd &lt;- normTransform(dds)</code></pre>
+<div id="log2-mean-sd-plot" class="section level4">
+<h4>log2 mean sd plot</h4>
+<pre class="r"><code>c &lt;- meanSdPlot(assay(ntd))$gg</code></pre>
+<p><img src="2024_10_16_Step1_Read_normalize_data_files/figure-html/log2%20mean%20sd-1.png" width="672" /></p>
+</div>
+<div id="variance-stabilized-mean-sd-plot" class="section level4">
+<h4>variance stabilized mean sd plot</h4>
+<pre class="r"><code>d &lt;- meanSdPlot(assay(vsd.fixed))$gg</code></pre>
+<p><img src="2024_10_16_Step1_Read_normalize_data_files/figure-html/vst%20mean%20sd-1.png" width="672" /></p>
+<pre class="r"><code>#e &lt;- meanSdPlot(assay(rld))$gg
+
+#plot_grid(c,d,e, labels = c(&#39;c&#39;, &#39;d&#39;, &#39;e&#39;), label_size = 12, ncol = 1, align = &quot;hv&quot;)
+#plot_grid(c,d, labels = c(&#39;c&#39;, &#39;d&#39;), label_size = 12, ncol = 1, align = &quot;hv&quot;) #not needed because mean/sd plots printed to screen when call function</code></pre>
+<ul>
+<li>Looking at the plots, conducting a variance stabilizing
+transformation looks more appropriate than a log2 + constant
+transformation of the count data.</li>
+</ul>
+<hr />
+</div>
+</div>
+</div>
+<div id="session-info" class="section level1">
+<h1>Session info</h1>
+<pre class="r"><code>sessionInfo()</code></pre>
+<pre><code>## R version 4.4.1 (2024-06-14)
+## Platform: aarch64-apple-darwin20
+## Running under: macOS Sonoma 14.7.4
+## 
+## Matrix products: default
+## BLAS:   /Library/Frameworks/R.framework/Versions/4.4-arm64/Resources/lib/libRblas.0.dylib 
+## LAPACK: /Library/Frameworks/R.framework/Versions/4.4-arm64/Resources/lib/libRlapack.dylib;  LAPACK version 3.12.0
+## 
+## locale:
+## [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+## 
+## time zone: America/New_York
+## tzcode source: internal
+## 
+## attached base packages:
+## [1] stats4    stats     graphics  grDevices utils     datasets  methods  
+## [8] base     
+## 
+## other attached packages:
+##  [1] patchwork_1.3.0.9000        vsn_3.72.0                 
+##  [3] hexbin_1.28.5               cowplot_1.1.3              
+##  [5] edgeR_4.2.2                 limma_3.60.6               
+##  [7] tximeta_1.22.1              DESeq2_1.44.0              
+##  [9] SummarizedExperiment_1.34.0 Biobase_2.64.0             
+## [11] MatrixGenerics_1.16.0       matrixStats_1.4.1          
+## [13] GenomicRanges_1.56.2        GenomeInfoDb_1.40.1        
+## [15] IRanges_2.38.1              S4Vectors_0.42.1           
+## [17] BiocGenerics_0.50.0         datapasta_3.1.0            
+## [19] tximport_1.32.0             rhdf5_2.48.0               
+## [21] lubridate_1.9.4             forcats_1.0.0              
+## [23] stringr_1.5.1               dplyr_1.1.4                
+## [25] purrr_1.0.2                 readr_2.1.5                
+## [27] tidyr_1.3.1                 tibble_3.2.1               
+## [29] ggplot2_3.5.1               tidyverse_2.0.0            
+## [31] BiocManager_1.30.25        
+## 
+## loaded via a namespace (and not attached):
+##   [1] rstudioapi_0.17.1        jsonlite_1.8.9           magrittr_2.0.3          
+##   [4] GenomicFeatures_1.56.0   farver_2.1.2             rmarkdown_2.29          
+##   [7] fs_1.6.5                 BiocIO_1.14.0            zlibbioc_1.50.0         
+##  [10] vctrs_0.6.5              memoise_2.0.1            Rsamtools_2.20.0        
+##  [13] RCurl_1.98-1.16          htmltools_0.5.8.1        S4Arrays_1.4.1          
+##  [16] usethis_3.1.0            progress_1.2.3           AnnotationHub_3.12.0    
+##  [19] curl_6.0.1               Rhdf5lib_1.26.0          SparseArray_1.4.8       
+##  [22] sass_0.4.9               bslib_0.8.0              htmlwidgets_1.6.4       
+##  [25] httr2_1.0.7              cachem_1.1.0             GenomicAlignments_1.40.0
+##  [28] mime_0.12                lifecycle_1.0.4          pkgconfig_2.0.3         
+##  [31] Matrix_1.7-0             R6_2.5.1                 fastmap_1.2.0           
+##  [34] GenomeInfoDbData_1.2.12  shiny_1.10.0             digest_0.6.37           
+##  [37] colorspace_2.1-1         AnnotationDbi_1.66.0     pkgload_1.4.0           
+##  [40] RSQLite_2.3.9            labeling_0.4.3           filelock_1.0.3          
+##  [43] timechange_0.3.0         httr_1.4.7               abind_1.4-8             
+##  [46] compiler_4.4.1           remotes_2.5.0            bit64_4.5.2             
+##  [49] withr_3.0.2              BiocParallel_1.38.0      DBI_1.2.3               
+##  [52] pkgbuild_1.4.5           biomaRt_2.60.1           rappdirs_0.3.3          
+##  [55] DelayedArray_0.30.1      sessioninfo_1.2.2        rjson_0.2.23            
+##  [58] tools_4.4.1              httpuv_1.6.15            glue_1.8.0              
+##  [61] restfulr_0.0.15          rhdf5filters_1.16.0      promises_1.3.2          
+##  [64] grid_4.4.1               generics_0.1.3           gtable_0.3.5            
+##  [67] tzdb_0.4.0               preprocessCore_1.66.0    ensembldb_2.28.1        
+##  [70] hms_1.1.3                xml2_1.3.6               XVector_0.44.0          
+##  [73] BiocVersion_3.19.1       pillar_1.10.1            vroom_1.6.5             
+##  [76] later_1.4.1              BiocFileCache_2.12.0     lattice_0.22-6          
+##  [79] rtracklayer_1.64.0       bit_4.5.0.1              tidyselect_1.2.1        
+##  [82] locfit_1.5-9.10          Biostrings_2.72.1        miniUI_0.1.1.1          
+##  [85] knitr_1.49               ProtGenerics_1.36.0      xfun_0.50               
+##  [88] statmod_1.5.0            devtools_2.4.5           stringi_1.8.4           
+##  [91] UCSC.utils_1.0.0         lazyeval_0.2.2           yaml_2.3.10             
+##  [94] evaluate_1.0.3           codetools_0.2-20         affyio_1.74.0           
+##  [97] cli_3.6.3                xtable_1.8-4             munsell_0.5.1           
+## [100] jquerylib_0.1.4          Rcpp_1.0.14              dbplyr_2.5.0            
+## [103] png_0.1-8                XML_3.99-0.17            parallel_4.4.1          
+## [106] ellipsis_0.3.2           blob_1.2.4               prettyunits_1.2.0       
+## [109] profvis_0.4.0            AnnotationFilter_1.28.0  urlchecker_1.0.1        
+## [112] bitops_1.0-9             txdbmaker_1.0.1          affy_1.82.0             
+## [115] scales_1.3.0             crayon_1.5.3             rlang_1.1.4             
+## [118] KEGGREST_1.44.1</code></pre>
+</div>
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+<script>
+$(document).ready(function () {
+  window.initializeCodeFolding("hide" === "show");
+});
+</script>
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
