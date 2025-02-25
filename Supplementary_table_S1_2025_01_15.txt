@@ -1,0 +1,477 @@
+OR_NAME	SPECIES	GENE_NAME	SP_CODE	NUMBER	SUFFIX	OR_GROUP	LAMPYRID	KNOWN_LIGAND
+AplaOR1	Agrilus planipennis	AplaOR1	Apla	1		2A	no	no
+AplaOR10	Agrilus planipennis	AplaOR10	Apla	10		2B	no	no
+AplaOR11	Agrilus planipennis	AplaOR11	Apla	11		2B	no	no
+AplaOR12	Agrilus planipennis	AplaOR12	Apla	12		2B	no	no
+AplaOR13	Agrilus planipennis	AplaOR13	Apla	13		2B	no	no
+AplaOR16	Agrilus planipennis	AplaOR16	Apla	16		2B	no	no
+AplaOR17	Agrilus planipennis	AplaOR17	Apla	17		2B	no	no
+AplaOR18FIX	Agrilus planipennis	AplaOR18FIX	Apla	18	FIX	2B	no	no
+AplaOR19	Agrilus planipennis	AplaOR19	Apla	19		2B	no	no
+AplaOR2	Agrilus planipennis	AplaOR2	Apla	2		2B	no	no
+AplaOR20	Agrilus planipennis	AplaOR20	Apla	20		2B	no	no
+AplaOR21FIX	Agrilus planipennis	AplaOR21FIX	Apla	21	FIX	2B	no	no
+AplaOR26	Agrilus planipennis	AplaOR26	Apla	26		2B	no	no
+AplaOR3	Agrilus planipennis	AplaOR3	Apla	3		2B	no	no
+AplaOR32	Agrilus planipennis	AplaOR32	Apla	32		2B	no	no
+AplaOR33	Agrilus planipennis	AplaOR33	Apla	33		2B	no	no
+AplaOR36	Agrilus planipennis	AplaOR36	Apla	36		3	no	no
+AplaOR37FIX	Agrilus planipennis	AplaOR37FIX	Apla	37	FIX	3	no	no
+AplaOR38	Agrilus planipennis	AplaOR38	Apla	38		3	no	no
+AplaOR4	Agrilus planipennis	AplaOR4	Apla	4		2B	no	no
+AplaOR40	Agrilus planipennis	AplaOR40	Apla	40		3	no	no
+AplaOR41JOI	Agrilus planipennis	AplaOR41JOI	Apla	41	JOI	5B	no	no
+AplaOR42	Agrilus planipennis	AplaOR42	Apla	42		5B	no	no
+AplaOR43	Agrilus planipennis	AplaOR43	Apla	43		6	no	no
+AplaOR45	Agrilus planipennis	AplaOR45	Apla	45		6	no	no
+AplaOR5	Agrilus planipennis	AplaOR5	Apla	5		2B	no	no
+AplaOR6	Agrilus planipennis	AplaOR6	Apla	6		2B	no	no
+AplaOR7	Agrilus planipennis	AplaOR7	Apla	7		2B	no	no
+AplaOR8	Agrilus planipennis	AplaOR8	Apla	8		2B	no	no
+AplaOR9	Agrilus planipennis	AplaOR9	Apla	9		2B	no	no
+AplaOrcoFIX	Agrilus planipennis	Apla\OrcoFIX	Apla		FIX	Orco	no	no
+KY817052__HparOR27_translation	Holotrichia parallela	HparOR27	Hpar	27			no	yes
+ItypOR23	Ips typographus	ItypOR23	Ityp	23			no	yes
+ItypOR25	Ips typographus	ItypOR25	Ityp	25			no	yes
+ItypOR27	Ips typographus	ItypOR27	Ityp	27			no	yes
+ItypOR28	Ips typographus	ItypOR28	Ityp	28			no	yes
+ItypOR29	Ips typographus	ItypOR29	Ityp	29			no	yes
+ItypOR46	Ips typographus	ItypOR46	Ityp	46			no	yes
+ItypOR49	Ips typographus	ItypOR49	Ityp	49			no	yes
+McOr20	Megacyllene caryae	McarOR20	Mcar	20			no	yes
+McOr3	Megacyllene caryae	McarOR3	Mcar	3			no	yes
+McOr5	Megacyllene caryae	McarOR5	Mcar	5			no	yes
+NvesOR1	Nicrophorus vespilloides	NvesOR1	Nves	1		2A	no	no
+NvesOR10	Nicrophorus vespilloides	NvesOR10	Nves	10		2B	no	no
+NvesOR11	Nicrophorus vespilloides	NvesOR11	Nves	11		2B	no	no
+NvesOR12	Nicrophorus vespilloides	NvesOR12	Nves	12		2B	no	no
+NvesOR13	Nicrophorus vespilloides	NvesOR13	Nves	13		2B	no	no
+NvesOR14	Nicrophorus vespilloides	NvesOR14	Nves	14		2B	no	no
+NvesOR15	Nicrophorus vespilloides	NvesOR15	Nves	15		2B	no	no
+NvesOR16	Nicrophorus vespilloides	NvesOR16	Nves	16		2B	no	no
+NvesOR17	Nicrophorus vespilloides	NvesOR17	Nves	17		2B	no	no
+NvesOR18a	Nicrophorus vespilloides	NvesOR18a	Nves	18	a	2B	no	no
+NvesOR18b	Nicrophorus vespilloides	NvesOR18b	Nves	18	b	2B	no	no
+NvesOR19	Nicrophorus vespilloides	NvesOR19	Nves	19		2B	no	no
+NvesOR2	Nicrophorus vespilloides	NvesOR2	Nves	2		2A	no	no
+NvesOR20	Nicrophorus vespilloides	NvesOR20	Nves	20		2B	no	no
+NvesOR21	Nicrophorus vespilloides	NvesOR21	Nves	21		7	no	no
+NvesOR22	Nicrophorus vespilloides	NvesOR22	Nves	22		7	no	no
+NvesOR23	Nicrophorus vespilloides	NvesOR23	Nves	23		7	no	no
+NvesOR25	Nicrophorus vespilloides	NvesOR25	Nves	25		7	no	no
+NvesOR27	Nicrophorus vespilloides	NvesOR27	Nves	27		1	no	no
+NvesOR28	Nicrophorus vespilloides	NvesOR28	Nves	28		1	no	no
+NvesOR29	Nicrophorus vespilloides	NvesOR29	Nves	29		1	no	no
+NvesOR30	Nicrophorus vespilloides	NvesOR30	Nves	30		1	no	no
+NvesOR31	Nicrophorus vespilloides	NvesOR31	Nves	31		1	no	no
+NvesOR32	Nicrophorus vespilloides	NvesOR32	Nves	32		1	no	no
+NvesOR33	Nicrophorus vespilloides	NvesOR33	Nves	33		1	no	no
+NvesOR34	Nicrophorus vespilloides	NvesOR34	Nves	34		1	no	no
+NvesOR35	Nicrophorus vespilloides	NvesOR35	Nves	35		1	no	no
+NvesOR36	Nicrophorus vespilloides	NvesOR36	Nves	36		1	no	no
+NvesOR37	Nicrophorus vespilloides	NvesOR37	Nves	37		1	no	no
+NvesOR38	Nicrophorus vespilloides	NvesOR38	Nves	38		1	no	no
+NvesOR39	Nicrophorus vespilloides	NvesOR39	Nves	39		1	no	no
+NvesOR40	Nicrophorus vespilloides	NvesOR40	Nves	40		1	no	no
+NvesOR41	Nicrophorus vespilloides	NvesOR41	Nves	41		1	no	no
+NvesOR42	Nicrophorus vespilloides	NvesOR42	Nves	42		1	no	no
+NvesOR43	Nicrophorus vespilloides	NvesOR43	Nves	43		1	no	no
+NvesOR44	Nicrophorus vespilloides	NvesOR44	Nves	44		2B	no	no
+NvesOR45	Nicrophorus vespilloides	NvesOR45	Nves	45		4	no	no
+NvesOR47	Nicrophorus vespilloides	NvesOR47	Nves	47		4	no	no
+NvesOR48	Nicrophorus vespilloides	NvesOR48	Nves	48		3	no	no
+NvesOR49	Nicrophorus vespilloides	NvesOR49	Nves	49		3	no	no
+NvesOR50	Nicrophorus vespilloides	NvesOR50	Nves	50		3	no	no
+NvesOR51	Nicrophorus vespilloides	NvesOR51	Nves	51		3	no	no
+NvesOR52	Nicrophorus vespilloides	NvesOR52	Nves	52		3	no	no
+NvesOR53	Nicrophorus vespilloides	NvesOR53	Nves	53		3	no	no
+NvesOR54	Nicrophorus vespilloides	NvesOR54	Nves	54		3	no	no
+NvesOR55	Nicrophorus vespilloides	NvesOR55	Nves	55		3	no	no
+NvesOR56	Nicrophorus vespilloides	NvesOR56	Nves	56		3	no	no
+NvesOR57	Nicrophorus vespilloides	NvesOR57	Nves	57		3	no	no
+NvesOR58	Nicrophorus vespilloides	NvesOR58	Nves	58		3	no	no
+NvesOR59	Nicrophorus vespilloides	NvesOR59	Nves	59		3	no	no
+NvesOR60	Nicrophorus vespilloides	NvesOR60	Nves	60		3	no	no
+NvesOR61	Nicrophorus vespilloides	NvesOR61	Nves	61		3	no	no
+NvesOR62FIX	Nicrophorus vespilloides	NvesOR62FIX	Nves	62	FIX	3	no	no
+NvesOR63	Nicrophorus vespilloides	NvesOR63	Nves	63		3	no	no
+NvesOR64	Nicrophorus vespilloides	NvesOR64	Nves	64		3	no	no
+NvesOR65	Nicrophorus vespilloides	NvesOR65	Nves	65		3	no	no
+NvesOR66	Nicrophorus vespilloides	NvesOR66	Nves	66		3	no	no
+NvesOR67	Nicrophorus vespilloides	NvesOR67	Nves	67		3	no	no
+NvesOR68	Nicrophorus vespilloides	NvesOR68	Nves	68		3	no	no
+NvesOR69	Nicrophorus vespilloides	NvesOR69	Nves	69		3	no	no
+NvesOR7	Nicrophorus vespilloides	NvesOR7	Nves	7		2B	no	no
+NvesOR71	Nicrophorus vespilloides	NvesOR71	Nves	71		3	no	no
+NvesOR72	Nicrophorus vespilloides	NvesOR72	Nves	72		3	no	no
+NvesOR74	Nicrophorus vespilloides	NvesOR74	Nves	74		3	no	no
+NvesOR75	Nicrophorus vespilloides	NvesOR75	Nves	75		3	no	no
+NvesOR77	Nicrophorus vespilloides	NvesOR77	Nves	77		3	no	no
+NvesOR78	Nicrophorus vespilloides	NvesOR78	Nves	78		3	no	no
+NvesOR79	Nicrophorus vespilloides	NvesOR79	Nves	79		3	no	no
+NvesOR8	Nicrophorus vespilloides	NvesOR8	Nves	8		2B	no	no
+NvesOR80	Nicrophorus vespilloides	NvesOR80	Nves	80		3	no	no
+NvesOR81	Nicrophorus vespilloides	NvesOR81	Nves	81		3	no	no
+NvesOR82	Nicrophorus vespilloides	NvesOR82	Nves	82		6	no	no
+NvesOR83	Nicrophorus vespilloides	NvesOR83	Nves	83		6	no	no
+NvesOR9	Nicrophorus vespilloides	NvesOR9	Nves	9		2B	no	no
+NvesOrco	Nicrophorus vespilloides	Nves\Orco	Nves			Orco	no	no
+PpyrOR1	Photinus pyralis	PpyrOR1	Ppyr	1		OR1	yes	no
+PpyrOR10	Photinus pyralis	PpyrOR10	Ppyr	10		2B	yes	no
+PpyrOR11	Photinus pyralis	PpyrOR11	Ppyr	11		2B	yes	no
+PpyrOR12	Photinus pyralis	PpyrOR12	Ppyr	12		2B	yes	no
+PpyrOR13PSE	Photinus pyralis	PpyrOR13PSE	Ppyr	13	PSE	2B	yes	no
+PpyrOR14	Photinus pyralis	PpyrOR14	Ppyr	14		2B	yes	no
+PpyrOR15	Photinus pyralis	PpyrOR15	Ppyr	15		2B	yes	no
+PpyrOR16	Photinus pyralis	PpyrOR16	Ppyr	16		2B	yes	no
+PpyrOR17PSE	Photinus pyralis	PpyrOR17PSE	Ppyr	17	PSE	2B	yes	no
+PpyrOR18	Photinus pyralis	PpyrOR18	Ppyr	18		2B	yes	no
+PpyrOR19	Photinus pyralis	PpyrOR19	Ppyr	19		2B	yes	no
+PpyrOR2	Photinus pyralis	PpyrOR2	Ppyr	2		2A	yes	no
+PpyrOR20	Photinus pyralis	PpyrOR20	Ppyr	20		2B	yes	no
+PpyrOR21	Photinus pyralis	PpyrOR21	Ppyr	21		2B	yes	no
+PpyrOR22	Photinus pyralis	PpyrOR22	Ppyr	22		2B	yes	no
+PpyrOR23	Photinus pyralis	PpyrOR23	Ppyr	23		2B	yes	no
+PpyrOR24	Photinus pyralis	PpyrOR24	Ppyr	24		2B	yes	no
+PpyrOR25	Photinus pyralis	PpyrOR25	Ppyr	25		2B	yes	no
+PpyrOR26PSE	Photinus pyralis	PpyrOR26PSE	Ppyr	26	PSE	2B	yes	no
+PpyrOR27	Photinus pyralis	PpyrOR27	Ppyr	27		2B	yes	no
+PpyrOR28	Photinus pyralis	PpyrOR28	Ppyr	28		2B	yes	no
+PpyrOR29	Photinus pyralis	PpyrOR29	Ppyr	29		2B	yes	no
+PpyrOR3	Photinus pyralis	PpyrOR3	Ppyr	3		2A	yes	no
+PpyrOR30	Photinus pyralis	PpyrOR30	Ppyr	30		2B	yes	no
+PpyrOR31	Photinus pyralis	PpyrOR31	Ppyr	31		2B	yes	no
+PpyrOR32	Photinus pyralis	PpyrOR32	Ppyr	32		2B	yes	no
+PpyrOR100NTE	Photinus pyralis	PpyrOR100NTE	Ppyr	100	NTE	6	yes	no
+PpyrOR33PSE	Photinus pyralis	PpyrOR33PSE	Ppyr	33	PSE	2B	yes	no
+PpyrOR34	Photinus pyralis	PpyrOR34	Ppyr	34		2B	yes	no
+PpyrOR35PSE	Photinus pyralis	PpyrOR35PSE	Ppyr	35	PSE	2B	yes	no
+PpyrOR36	Photinus pyralis	PpyrOR36	Ppyr	36		2B	yes	no
+PpyrOR37	Photinus pyralis	PpyrOR37	Ppyr	37		2B	yes	no
+PpyrOR38PSE	Photinus pyralis	PpyrOR38PSE	Ppyr	38	PSE	2B	yes	no
+PpyrOR39PSE	Photinus pyralis	PpyrOR39PSE	Ppyr	39	PSE	2B	yes	no
+PpyrOR4	Photinus pyralis	PpyrOR4	Ppyr	4		2A	yes	no
+PpyrOR40	Photinus pyralis	PpyrOR40	Ppyr	40		2B	yes	no
+PpyrOR41	Photinus pyralis	PpyrOR41	Ppyr	41		2B	yes	no
+PpyrOR42	Photinus pyralis	PpyrOR42	Ppyr	42		2B	yes	no
+PpyrOR43PSE	Photinus pyralis	PpyrOR43PSE	Ppyr	43	PSE	2B	yes	no
+PpyrOR44	Photinus pyralis	PpyrOR44	Ppyr	44		2B	yes	no
+PpyrOR45	Photinus pyralis	PpyrOR45	Ppyr	45		2B	yes	no
+PpyrOR46	Photinus pyralis	PpyrOR46	Ppyr	46		2B	yes	no
+PpyrOR47	Photinus pyralis	PpyrOR47	Ppyr	47		2B	yes	no
+PpyrOR48PSE	Photinus pyralis	PpyrOR48PSE	Ppyr	48	PSE	2B	yes	no
+PpyrOR49PSE	Photinus pyralis	PpyrOR49PSE	Ppyr	49	PSE	2B	yes	no
+PpyrOR5	Photinus pyralis	PpyrOR5	Ppyr	5		2A	yes	no
+PpyrOR50	Photinus pyralis	PpyrOR50	Ppyr	50		2B	yes	no
+PpyrOR51	Photinus pyralis	PpyrOR51	Ppyr	51		2B	yes	no
+PpyrOR52	Photinus pyralis	PpyrOR52	Ppyr	52		2B	yes	no
+PpyrOR53	Photinus pyralis	PpyrOR53	Ppyr	53		2B	yes	no
+PpyrOR54	Photinus pyralis	PpyrOR54	Ppyr	54		2B	yes	no
+PpyrOR55PSE	Photinus pyralis	PpyrOR55PSE	Ppyr	55	PSE	2B	yes	no
+PpyrOR56PSE	Photinus pyralis	PpyrOR56PSE	Ppyr	56	PSE	2B	yes	no
+PpyrOR57	Photinus pyralis	PpyrOR57	Ppyr	57		2B	yes	no
+PpyrOR58PSE	Photinus pyralis	PpyrOR58PSE	Ppyr	58	PSE	2B	yes	no
+PpyrOR59	Photinus pyralis	PpyrOR59	Ppyr	59		2B	yes	no
+PpyrOR6	Photinus pyralis	PpyrOR6	Ppyr	6		2A	yes	no
+PpyrOR60	Photinus pyralis	PpyrOR60	Ppyr	60		2B	yes	no
+PpyrOR61	Photinus pyralis	PpyrOR61	Ppyr	61		2B	yes	no
+PpyrOR62	Photinus pyralis	PpyrOR62	Ppyr	62		2B	yes	no
+PpyrOR63	Photinus pyralis	PpyrOR63	Ppyr	63		2B	yes	no
+PpyrOR64	Photinus pyralis	PpyrOR64	Ppyr	64		2B	yes	no
+PpyrOR65	Photinus pyralis	PpyrOR65	Ppyr	65		2B	yes	no
+PpyrOR66	Photinus pyralis	PpyrOR66	Ppyr	66		2B	yes	no
+PpyrOR67	Photinus pyralis	PpyrOR67	Ppyr	67		2B	yes	no
+PpyrOR68	Photinus pyralis	PpyrOR68	Ppyr	68		2B	yes	no
+PpyrOR69	Photinus pyralis	PpyrOR69	Ppyr	69		2B	yes	no
+PpyrOR7	Photinus pyralis	PpyrOR7	Ppyr	7		2A	yes	no
+PpyrOR70	Photinus pyralis	PpyrOR70	Ppyr	70		2B	yes	no
+PpyrOR71	Photinus pyralis	PpyrOR71	Ppyr	71		2B	yes	no
+PpyrOR72	Photinus pyralis	PpyrOR72	Ppyr	72		2B	yes	no
+PpyrOR73	Photinus pyralis	PpyrOR73	Ppyr	73		2B	yes	no
+PpyrOR74	Photinus pyralis	PpyrOR74	Ppyr	74		2B	yes	no
+PpyrOR75	Photinus pyralis	PpyrOR75	Ppyr	75		2B	yes	no
+PpyrOR76	Photinus pyralis	PpyrOR76	Ppyr	76		2B	yes	no
+PpyrOR77	Photinus pyralis	PpyrOR77	Ppyr	77		2B	yes	no
+PpyrOR78PSE	Photinus pyralis	PpyrOR78PSE	Ppyr	78	PSE	2B	yes	no
+PpyrOR79PSE	Photinus pyralis	PpyrOR79PSE	Ppyr	79	PSE	2B	yes	no
+PpyrOR80	Photinus pyralis	PpyrOR80	Ppyr	80		2B	yes	no
+PpyrOR81	Photinus pyralis	PpyrOR81	Ppyr	81		2B	yes	no
+PpyrOR82CTE	Photinus pyralis	PpyrOR82CTE	Ppyr	82	CTE	2B	yes	no
+PpyrOR83	Photinus pyralis	PpyrOR83	Ppyr	83		4	yes	no
+PpyrOR84	Photinus pyralis	PpyrOR84	Ppyr	84		4	yes	no
+PpyrOR85	Photinus pyralis	PpyrOR85	Ppyr	85		4	yes	no
+PpyrOR86	Photinus pyralis	PpyrOR86	Ppyr	86		4	yes	no
+PpyrOR87	Photinus pyralis	PpyrOR87	Ppyr	87		4	yes	no
+PpyrOR88	Photinus pyralis	PpyrOR88	Ppyr	88		4	yes	no
+PpyrOR89	Photinus pyralis	PpyrOR89	Ppyr	89		3	yes	no
+PpyrOR8a	Photinus pyralis	PpyrOR8a	Ppyr	8	a	2A	yes	no
+PpyrOR8b	Photinus pyralis	PpyrOR8b	Ppyr	8	b	2A	yes	no
+PpyrOR9	Photinus pyralis	PpyrOR9	Ppyr	9		2B	yes	no
+PpyrOR90	Photinus pyralis	PpyrOR90	Ppyr	90		3	yes	no
+PpyrOR91	Photinus pyralis	PpyrOR91	Ppyr	91		3	yes	no
+PpyrOR92	Photinus pyralis	PpyrOR92	Ppyr	92		3	yes	no
+PpyrOR93	Photinus pyralis	PpyrOR93	Ppyr	93		3	yes	no
+PpyrOR94	Photinus pyralis	PpyrOR94	Ppyr	94		3	yes	no
+PpyrOR95	Photinus pyralis	PpyrOR95	Ppyr	95		3	yes	no
+PpyrOR96	Photinus pyralis	PpyrOR96	Ppyr	96		6	yes	no
+PpyrOR97	Photinus pyralis	PpyrOR97	Ppyr	97		6	yes	no
+PpyrOR98	Photinus pyralis	PpyrOR98	Ppyr	98		6	yes	no
+PpyrOR99	Photinus pyralis	PpyrOR99	Ppyr	99		6	yes	no
+PpyrOrco	Photinus pyralis	Ppyr\Orco	Ppyr			Orco	yes	no
+MK060009__RferOR1_translation	Rhynchophorus ferrugineus	RferOR1	Afer	1			no	yes
+MW979236__RferOR6_translation	Rhynchophorus ferrugineus	RferOR6	Rfer	6			no	yes
+TcasOrco	Tribolium castaneum	Tcas\Orco	Tcas			Orco	no	no
+TcOr10	Tribolium castaneum	TcasOR10	Tcas	10		2A	no	no
+TcOr100	Tribolium castaneum	TcasOR100	Tcas	100		1	no	no
+TcOr102	Tribolium castaneum	TcasOR102	Tcas	102		1	no	no
+TcOr103	Tribolium castaneum	TcasOR103	Tcas	103		3	no	no
+TcOr105	Tribolium castaneum	TcasOR105	Tcas	105		3	no	no
+TcOr106	Tribolium castaneum	TcasOR106	Tcas	106		3	no	no
+TcOr107	Tribolium castaneum	TcasOR107	Tcas	107		3	no	no
+TcOr108	Tribolium castaneum	TcasOR108	Tcas	108		3	no	no
+TcOr109	Tribolium castaneum	TcasOR109	Tcas	109		3	no	no
+TcOr11	Tribolium castaneum	TcasOR11	Tcas	11		2A	no	no
+TcOr110	Tribolium castaneum	TcasOR110	Tcas	110		3	no	no
+TcOr111	Tribolium castaneum	TcasOR111	Tcas	111		3	no	no
+TcOr112	Tribolium castaneum	TcasOR112	Tcas	112		3	no	no
+TcOr113	Tribolium castaneum	TcasOR113	Tcas	113		3	no	no
+TcOr114	Tribolium castaneum	TcasOR114	Tcas	114		3	no	no
+TcOr115	Tribolium castaneum	TcasOR115	Tcas	115		3	no	no
+TcOr116	Tribolium castaneum	TcasOR116	Tcas	116		3	no	no
+TcOr117	Tribolium castaneum	TcasOR117	Tcas	117		3	no	no
+TcOr119	Tribolium castaneum	TcasOR119	Tcas	119		3	no	no
+TcOr12	Tribolium castaneum	TcasOR12	Tcas	12		2A	no	no
+TcOr120	Tribolium castaneum	TcasOR120	Tcas	120		3	no	no
+TcOr121	Tribolium castaneum	TcasOR121	Tcas	121		3	no	no
+TcOr123	Tribolium castaneum	TcasOR123	Tcas	123		3	no	no
+TcOr124	Tribolium castaneum	TcasOR124	Tcas	124		3	no	no
+TcOr126FIX	Tribolium castaneum	TcasOR126FIX	Tcas	126	FIX	3	no	no
+TcOr127	Tribolium castaneum	TcasOR127	Tcas	127		3	no	no
+TcOr128	Tribolium castaneum	TcasOR128	Tcas	128		3	no	no
+TcOr129	Tribolium castaneum	TcasOR129	Tcas	129		3	no	no
+TcOr13	Tribolium castaneum	TcasOR13	Tcas	13		2A	no	no
+TcOr130	Tribolium castaneum	TcasOR130	Tcas	130		3	no	no
+TcOr131	Tribolium castaneum	TcasOR131	Tcas	131		3	no	no
+TcOr133	Tribolium castaneum	TcasOR133	Tcas	133		3	no	no
+TcOr135	Tribolium castaneum	TcasOR135	Tcas	135		3	no	no
+TcOr136	Tribolium castaneum	TcasOR136	Tcas	136		3	no	no
+TcOr138	Tribolium castaneum	TcasOR138	Tcas	138		3	no	no
+TcOr139	Tribolium castaneum	TcasOR139	Tcas	139		3	no	no
+TcOr14	Tribolium castaneum	TcasOR14	Tcas	14		2A	no	no
+TcOr141	Tribolium castaneum	TcasOR141	Tcas	141		3	no	no
+TcOr144	Tribolium castaneum	TcasOR144	Tcas	144		3	no	no
+TcOr145	Tribolium castaneum	TcasOR145	Tcas	145		3	no	no
+TcOr146	Tribolium castaneum	TcasOR146	Tcas	146		3	no	no
+TcOr147	Tribolium castaneum	TcasOR147	Tcas	147		3	no	no
+TcOr148	Tribolium castaneum	TcasOR148	Tcas	148		3	no	no
+TcOr149	Tribolium castaneum	TcasOR149	Tcas	149		3	no	no
+TcOr15	Tribolium castaneum	TcasOR15	Tcas	15		2A	no	no
+TcOr150	Tribolium castaneum	TcasOR150	Tcas	150		3	no	no
+TcOr151	Tribolium castaneum	TcasOR151	Tcas	151		3	no	no
+TcOr152	Tribolium castaneum	TcasOR152	Tcas	152		3	no	no
+TcOr153	Tribolium castaneum	TcasOR153	Tcas	153		3	no	no
+TcOr154	Tribolium castaneum	TcasOR154	Tcas	154		3	no	no
+TcOr155	Tribolium castaneum	TcasOR155	Tcas	155		2A	no	no
+TcOr159	Tribolium castaneum	TcasOR159	Tcas	159		5A	no	no
+TcOr16	Tribolium castaneum	TcasOR16	Tcas	16		2A	no	no
+TcOr160	Tribolium castaneum	TcasOR160	Tcas	160		5A	no	no
+TcOr164	Tribolium castaneum	TcasOR164	Tcas	164		5A	no	no
+TcOr165	Tribolium castaneum	TcasOR165	Tcas	165		5A	no	no
+TcOr167	Tribolium castaneum	TcasOR167	Tcas	167		4	no	no
+TcOr17	Tribolium castaneum	TcasOR17	Tcas	17		2A	no	no
+TcOr171	Tribolium castaneum	TcasOR171	Tcas	171		5A	no	no
+TcOr172	Tribolium castaneum	TcasOR172	Tcas	172		5A	no	no
+TcOr173	Tribolium castaneum	TcasOR173	Tcas	173		5A	no	no
+TcOr174	Tribolium castaneum	TcasOR174	Tcas	174		5A	no	no
+TcOr175	Tribolium castaneum	TcasOR175	Tcas	175		5A	no	no
+TcOr177	Tribolium castaneum	TcasOR177	Tcas	177		5A	no	no
+TcOr178	Tribolium castaneum	TcasOR178	Tcas	178		5A	no	no
+TcOr179FIX	Tribolium castaneum	TcasOR179FIX	Tcas	179	FIX	5A	no	no
+TcOr183	Tribolium castaneum	TcasOR183	Tcas	183		5A	no	no
+TcOr184	Tribolium castaneum	TcasOR184	Tcas	184		5A	no	no
+TcOr185	Tribolium castaneum	TcasOR185	Tcas	185		5A	no	no
+TcOr186	Tribolium castaneum	TcasOR186	Tcas	186		5A	no	no
+TcOr187	Tribolium castaneum	TcasOR187	Tcas	187		5A	no	no
+TcOr188	Tribolium castaneum	TcasOR188	Tcas	188		5A	no	no
+TcOr189	Tribolium castaneum	TcasOR189	Tcas	189		5A	no	no
+TcOr190	Tribolium castaneum	TcasOR190	Tcas	190		5A	no	no
+TcOr191	Tribolium castaneum	TcasOR191	Tcas	191		5A	no	no
+TcOr192	Tribolium castaneum	TcasOR192	Tcas	192		5A	no	no
+TcOr193	Tribolium castaneum	TcasOR193	Tcas	193		5A	no	no
+TcOr194FIX	Tribolium castaneum	TcasOR194FIX	Tcas	194	FIX	5A	no	no
+TcOr195	Tribolium castaneum	TcasOR195	Tcas	195		5A	no	no
+TcOr197	Tribolium castaneum	TcasOR197	Tcas	197		5A	no	no
+TcOr198	Tribolium castaneum	TcasOR198	Tcas	198		5A	no	no
+TcOr199	Tribolium castaneum	TcasOR199	Tcas	199		5A	no	no
+TcOr20	Tribolium castaneum	TcasOR20	Tcas	20		2A	no	no
+TcOr200FIX	Tribolium castaneum	TcasOR200FIX	Tcas	200	FIX	5A	no	no
+TcOr202	Tribolium castaneum	TcasOR202	Tcas	202		5A	no	no
+TcOr204FIX	Tribolium castaneum	TcasOR204FIX	Tcas	204	FIX	5A	no	no
+TcOr205	Tribolium castaneum	TcasOR205	Tcas	205		5A	no	no
+TcOr206FIX	Tribolium castaneum	TcasOR206FIX	Tcas	206	FIX	5A	no	no
+TcOr208	Tribolium castaneum	TcasOR208	Tcas	208		5A	no	no
+TcOr209	Tribolium castaneum	TcasOR209	Tcas	209		5A	no	no
+TcOr211	Tribolium castaneum	TcasOR211	Tcas	211		5A	no	no
+TcOr212	Tribolium castaneum	TcasOR212	Tcas	212		5A	no	no
+TcOr213	Tribolium castaneum	TcasOR213	Tcas	213		5A	no	no
+TcOr214	Tribolium castaneum	TcasOR214	Tcas	214		5A	no	no
+TcOr215	Tribolium castaneum	TcasOR215	Tcas	215		5A	no	no
+TcOr216	Tribolium castaneum	TcasOR216	Tcas	216		5A	no	no
+TcOr217	Tribolium castaneum	TcasOR217	Tcas	217		5A	no	no
+TcOr218	Tribolium castaneum	TcasOR218	Tcas	218		5A	no	no
+TcOr219	Tribolium castaneum	TcasOR219	Tcas	219		5A	no	no
+TcOr220	Tribolium castaneum	TcasOR220	Tcas	220		5A	no	no
+TcOr221	Tribolium castaneum	TcasOR221	Tcas	221		5A	no	no
+TcOr222	Tribolium castaneum	TcasOR222	Tcas	222		5A	no	no
+TcOr223	Tribolium castaneum	TcasOR223	Tcas	223		5A	no	no
+TcOr224FIX	Tribolium castaneum	TcasOR224FIX	Tcas	224	FIX	5A	no	no
+TcOr225	Tribolium castaneum	TcasOR225	Tcas	225		5A	no	no
+TcOr226	Tribolium castaneum	TcasOR226	Tcas	226		5A	no	no
+TcOr227	Tribolium castaneum	TcasOR227	Tcas	227		5A	no	no
+TcOr228	Tribolium castaneum	TcasOR228	Tcas	228		5A	no	no
+TcOr229	Tribolium castaneum	TcasOR229	Tcas	229		5A	no	no
+TcOr23	Tribolium castaneum	TcasOR23	Tcas	23		2A	no	no
+TcOr230	Tribolium castaneum	TcasOR230	Tcas	230		5A	no	no
+TcOr231	Tribolium castaneum	TcasOR231	Tcas	231		5A	no	no
+TcOr232	Tribolium castaneum	TcasOR232	Tcas	232		5A	no	no
+TcOr234	Tribolium castaneum	TcasOR234	Tcas	234		5A	no	no
+TcOr236	Tribolium castaneum	TcasOR236	Tcas	236		5A	no	no
+TcOr238	Tribolium castaneum	TcasOR238	Tcas	238		5A	no	no
+TcOr239	Tribolium castaneum	TcasOR239	Tcas	239		5A	no	no
+TcOr24	Tribolium castaneum	TcasOR24	Tcas	24		2A	no	no
+TcOr241FIX	Tribolium castaneum	TcasOR241FIX	Tcas	241	FIX	5A	no	no
+TcOr242	Tribolium castaneum	TcasOR242	Tcas	242		5A	no	no
+TcOr243	Tribolium castaneum	TcasOR243	Tcas	243		5A	no	no
+TcOr244	Tribolium castaneum	TcasOR244	Tcas	244		5A	no	no
+TcOr245	Tribolium castaneum	TcasOR245	Tcas	245		5A	no	no
+TcOr247	Tribolium castaneum	TcasOR247	Tcas	247		5A	no	no
+TcOr25	Tribolium castaneum	TcasOR25	Tcas	25		2A	no	no
+TcOr254FIX	Tribolium castaneum	TcasOR254FIX	Tcas	254	FIX	5A	no	no
+TcOr259	Tribolium castaneum	TcasOR259	Tcas	259		5A	no	no
+TcOr26	Tribolium castaneum	TcasOR26	Tcas	26		2A	no	no
+TcOr263	Tribolium castaneum	TcasOR263	Tcas	263		5A	no	no
+TcOr264	Tribolium castaneum	TcasOR264	Tcas	264		5A	no	no
+TcOr269	Tribolium castaneum	TcasOR269	Tcas	269		5A	no	no
+TcOr27	Tribolium castaneum	TcasOR27	Tcas	27		2A	no	no
+TcOr270	Tribolium castaneum	TcasOR270	Tcas	270		5A	no	no
+TcOr272	Tribolium castaneum	TcasOR272	Tcas	272		5A	no	no
+TcOr275FIX	Tribolium castaneum	TcasOR275FIX	Tcas	275	FIX	5B	no	no
+TcOr276	Tribolium castaneum	TcasOR276	Tcas	276		5A	no	no
+TcOr277	Tribolium castaneum	TcasOR277	Tcas	277		5A	no	no
+TcOr278	Tribolium castaneum	TcasOR278	Tcas	278		5A	no	no
+TcOr28	Tribolium castaneum	TcasOR28	Tcas	28		2A	no	no
+TcOr281	Tribolium castaneum	TcasOR281	Tcas	281		5A	no	no
+TcOr282	Tribolium castaneum	TcasOR282	Tcas	282		5A	no	no
+TcOr283	Tribolium castaneum	TcasOR283	Tcas	283		5A	no	no
+TcOr284	Tribolium castaneum	TcasOR284	Tcas	284		5A	no	no
+TcOr285	Tribolium castaneum	TcasOR285	Tcas	285		5A	no	no
+TcOr286	Tribolium castaneum	TcasOR286	Tcas	286		5A	no	no
+TcOr287	Tribolium castaneum	TcasOR287	Tcas	287		5A	no	no
+TcOr288	Tribolium castaneum	TcasOR288	Tcas	288		5A	no	no
+TcOr289FIX	Tribolium castaneum	TcasOR289FIX	Tcas	289	FIX	5A	no	no
+TcOr29	Tribolium castaneum	TcasOR29	Tcas	29		2A	no	no
+TcOr290	Tribolium castaneum	TcasOR290	Tcas	290		5A	no	no
+TcOr292	Tribolium castaneum	TcasOR292	Tcas	292		5A	no	no
+TcOr293	Tribolium castaneum	TcasOR293	Tcas	293		5A	no	no
+TcOr294	Tribolium castaneum	TcasOR294	Tcas	294		5A	no	no
+TcOr295	Tribolium castaneum	TcasOR295	Tcas	295		5A	no	no
+TcOr296	Tribolium castaneum	TcasOR296	Tcas	296		5A	no	no
+TcOr297	Tribolium castaneum	TcasOR297	Tcas	297		5A	no	no
+TcOr299	Tribolium castaneum	TcasOR299	Tcas	299		5A	no	no
+TcOr3	Tribolium castaneum	TcasOR3	Tcas	3		2A	no	no
+TcOr30	Tribolium castaneum	TcasOR30	Tcas	30		2A	no	no
+TcOr300	Tribolium castaneum	TcasOR300	Tcas	300		5A	no	no
+TcOr301	Tribolium castaneum	TcasOR301	Tcas	301		5A	no	no
+TcOr302	Tribolium castaneum	TcasOR302	Tcas	302		5A	no	no
+TcOr303	Tribolium castaneum	TcasOR303	Tcas	303		5A	no	no
+TcOr304	Tribolium castaneum	TcasOR304	Tcas	304		5A	no	no
+TcOr305	Tribolium castaneum	TcasOR305	Tcas	305		5A	no	no
+TcOr306FIX	Tribolium castaneum	TcasOR306FIX	Tcas	306	FIX	5A	no	no
+TcOr307	Tribolium castaneum	TcasOR307	Tcas	307		5A	no	no
+TcOr309	Tribolium castaneum	TcasOR309	Tcas	309		5A	no	no
+TcOr310	Tribolium castaneum	TcasOR310	Tcas	310		5A	no	no
+TcOr311	Tribolium castaneum	TcasOR311	Tcas	311		5A	no	no
+TcOr313	Tribolium castaneum	TcasOR313	Tcas	313		5A	no	no
+TcOr314	Tribolium castaneum	TcasOR314	Tcas	314		5A	no	no
+TcOr315	Tribolium castaneum	TcasOR315	Tcas	315		5A	no	no
+TcOr316	Tribolium castaneum	TcasOR316	Tcas	316		5A	no	no
+TcOr318	Tribolium castaneum	TcasOR318	Tcas	318		5A	no	no
+TcOr319	Tribolium castaneum	TcasOR319	Tcas	319		5A	no	no
+TcOr31FIX	Tribolium castaneum	TcasOR31FIX	Tcas	31	FIX	2A	no	no
+TcOr32	Tribolium castaneum	TcasOR32	Tcas	32		2A	no	no
+TcOr320	Tribolium castaneum	TcasOR320	Tcas	320		5A	no	no
+TcOr321	Tribolium castaneum	TcasOR321	Tcas	321		5A	no	no
+TcOr322	Tribolium castaneum	TcasOR322	Tcas	322		5A	no	no
+TcOr323	Tribolium castaneum	TcasOR323	Tcas	323		5A	no	no
+TcOr324	Tribolium castaneum	TcasOR324	Tcas	324		5A	no	no
+TcOr325	Tribolium castaneum	TcasOR325	Tcas	325		5A	no	no
+TcOr327	Tribolium castaneum	TcasOR327	Tcas	327		5A	no	no
+TcOr328	Tribolium castaneum	TcasOR328	Tcas	328		5A	no	no
+TcOr329	Tribolium castaneum	TcasOR329	Tcas	329		5A	no	no
+TcOr33	Tribolium castaneum	TcasOR33	Tcas	33		2A	no	no
+TcOr330	Tribolium castaneum	TcasOR330	Tcas	330		5A	no	no
+TcOr331	Tribolium castaneum	TcasOR331	Tcas	331		5A	no	no
+TcOr332	Tribolium castaneum	TcasOR332	Tcas	332		5A	no	no
+TcOr333	Tribolium castaneum	TcasOR333	Tcas	333		5A	no	no
+TcOr334	Tribolium castaneum	TcasOR334	Tcas	334		5A	no	no
+TcOr335	Tribolium castaneum	TcasOR335	Tcas	335		5A	no	no
+TcOr339	Tribolium castaneum	TcasOR339	Tcas	339		5A	no	no
+TcOr34	Tribolium castaneum	TcasOR34	Tcas	34		2A	no	no
+TcOr340	Tribolium castaneum	TcasOR340	Tcas	340		5A	no	no
+TcOr35	Tribolium castaneum	TcasOR35	Tcas	35		2A	no	no
+TcOr36	Tribolium castaneum	TcasOR36	Tcas	36		2A	no	no
+TcOr37	Tribolium castaneum	TcasOR37	Tcas	37		2A	no	no
+TcOr38	Tribolium castaneum	TcasOR38	Tcas	38		2A	no	no
+TcOr39	Tribolium castaneum	TcasOR39	Tcas	39		2A	no	no
+TcOr40	Tribolium castaneum	TcasOR40	Tcas	40		2A	no	no
+TcOr41	Tribolium castaneum	TcasOR41	Tcas	41		2A	no	no
+TcOr42	Tribolium castaneum	TcasOR42	Tcas	42		2A	no	no
+TcOr43	Tribolium castaneum	TcasOR43	Tcas	43		2A	no	no
+TcOr44	Tribolium castaneum	TcasOR44	Tcas	44		2A	no	no
+TcOr45	Tribolium castaneum	TcasOR45	Tcas	45		2A	no	no
+TcOr46	Tribolium castaneum	TcasOR46	Tcas	46		2B	no	no
+TcOr47	Tribolium castaneum	TcasOR47	Tcas	47		2A	no	no
+TcOr48	Tribolium castaneum	TcasOR48	Tcas	48		2A	no	no
+TcOr49	Tribolium castaneum	TcasOR49	Tcas	49		2A	no	no
+TcOr50	Tribolium castaneum	TcasOR50	Tcas	50		2A	no	no
+TcOr51	Tribolium castaneum	TcasOR51	Tcas	51		2A	no	no
+TcOr52	Tribolium castaneum	TcasOR52	Tcas	52		2A	no	no
+TcOr53	Tribolium castaneum	TcasOR53	Tcas	53		2A	no	no
+TcOr54	Tribolium castaneum	TcasOR54	Tcas	54		2A	no	no
+TcOr55	Tribolium castaneum	TcasOR55	Tcas	55		2A	no	no
+TcOr56	Tribolium castaneum	TcasOR56	Tcas	56		2A	no	no
+TcOr57	Tribolium castaneum	TcasOR57	Tcas	57		2A	no	no
+TcOr58	Tribolium castaneum	TcasOR58	Tcas	58		2A	no	no
+TcOr59	Tribolium castaneum	TcasOR59	Tcas	59		2A	no	no
+TcOr6	Tribolium castaneum	TcasOR6	Tcas	6		2A	no	no
+TcOr60	Tribolium castaneum	TcasOR60	Tcas	60		2A	no	no
+TcOr61	Tribolium castaneum	TcasOR61	Tcas	61		2A	no	no
+TcOr63	Tribolium castaneum	TcasOR63	Tcas	63		2A	no	no
+TcOr64	Tribolium castaneum	TcasOR64	Tcas	64		2B	no	no
+TcOr65	Tribolium castaneum	TcasOR65	Tcas	65		2B	no	no
+TcOr66	Tribolium castaneum	TcasOR66	Tcas	66		2B	no	no
+TcOr67	Tribolium castaneum	TcasOR67	Tcas	67		2A	no	no
+TcOr68	Tribolium castaneum	TcasOR68	Tcas	68		2A	no	no
+TcOr69	Tribolium castaneum	TcasOR69	Tcas	69		2A	no	no
+TcOr7	Tribolium castaneum	TcasOR7	Tcas	7		2A	no	no
+TcOr70	Tribolium castaneum	TcasOR70	Tcas	70		2A	no	no
+TcOr72	Tribolium castaneum	TcasasOR72	Tcas	72		6	no	no
+TcOr73FIX	Tribolium castaneum	TcasOR73FIX	Tcas	73	FIX	1	no	no
+TcOr76	Tribolium castaneum	TcasOR76	Tcas	76		1	no	no
+TcOr77	Tribolium castaneum	TcasOR77	Tcas	77		1	no	no
+TcOr78	Tribolium castaneum	TcasOR78	Tcas	78		1	no	no
+TcOr79	Tribolium castaneum	TcasOR79	Tcas	79		1	no	no
+TcOr80	Tribolium castaneum	TcasOR80	Tcas	80		1	no	no
+TcOr84	Tribolium castaneum	TcasOR84	Tcas	84		1	no	no
+TcOr86	Tribolium castaneum	TcasOR86	Tcas	86		1	no	no
+TcOr87	Tribolium castaneum	TcasOR87	Tcas	87		1	no	no
+TcOr88	Tribolium castaneum	TcasOR88	Tcas	88		1	no	no
+TcOr89	Tribolium castaneum	TcasOR89	Tcas	89		1	no	no
+TcOr9	Tribolium castaneum	TcasOR9	Tcas	9		2A	no	no
+TcOr90	Tribolium castaneum	TcasOR90	Tcas	90		1	no	no
+TcOr92	Tribolium castaneum	TcasOR92	Tcas	92		1	no	no
+TcOr93	Tribolium castaneum	TcasOR93	Tcas	93		1	no	no
+TcOr94	Tribolium castaneum	TcasOR94	Tcas	94		1	no	no
+TcOr95FIX	Tribolium castaneum	TcasOR95FIX	Tcas	95	FIX	1	no	no
+TcOr97	Tribolium castaneum	TcasOR97	Tcas	97		1	no	no
+TcOr98FIX	Tribolium castaneum	TcasOR98FIX	Tcas	98	FIX	1	no	no
