@@ -1,0 +1,2965 @@
+---
+title: "Step3_DE_analysis"
+author: "Sam Pring, Sarah Lower, Brian Vestal"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    theme: cerulean
+    toc: TRUE
+    toc_float:
+        collapsed: TRUE
+    code_folding: hide
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load packages
+```{r load libraries, message=FALSE, warning=FALSE}
+#installation if necessary
+#if (!require("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+#if (!requireNamespace("devtools", quietly = TRUE)) {
+#  install.packages("devtools")
+#}
+
+#BiocManager::install("rhdf5")
+#BiocManager::install("tximport")
+#BiocManager::install("DESeq2")
+#BiocManager::install("tximeta")
+#install.packages("tidyselect")
+
+#loading in the data
+#library(rhdf5) # allows for the handling of hdf5 file formats
+#if (!require("tidyverse")) install.packages("tidyverse"); 
+#library(tidyverse)
+#library(tximport) # package for getting Salmon results into R
+#library(datapasta) # allows for copy and pasting
+#library(DESeq2)
+library(SummarizedExperiment)
+library(readr)
+#library(tximeta)
+
+#filtering and normalization
+#BiocManager::install("vsn")
+#library(edgeR)
+#library(matrixStats)
+#library(cowplot)
+#library(hexbin)
+#library("vsn")
+
+#multivariate analysis (edgeR)
+#if (!require("DT")) install.packages("DT"); library(DT) # for making interactive tables
+#if (!require("plotly")) install.packages("plotly"); library(plotly) # for making interactive plots
+#if (!require("gt")) install.packages("gt"); library(gt) # A layered 'grammar of tables' - think ggplot, but for tables
+#if (!require("stargazer")) install.packages("stargazer"); library(stargazer)
+#if (!require("rgl")) install.packages("rgl"); library(rgl)
+#if (!require("dendextend")) install.packages("dendextend"); library(dendextend) # A way to customize dendrograms to make more complicated visualizations
+#if (!require("ggpattern")) install.packages("ggpattern"); library(ggpattern)
+#if (!require("data.table")) install.packages("data.table"); library(data.table)
+
+#making pretty figs and tables
+#devtools::install_github("thomasp85/patchwork")
+#library(patchwork)
+library(gt)
+library("ggVennDiagram")
+library(ggh4x)
+library(patchwork)
+library(ggpattern)
+
+
+
+#lmerSeq analysis
+
+#install dependencies
+#install.packages(pkgs = c('pbapply', 'lmerTest', 'dplyr', 'devtools', 'magrittr', 'gtools', 'nlme', 'numDeriv', 'lavaSearch2'))
+
+#download lmerSeq
+
+#devtools::install_github("stop-pre16/lmerSeq", build_vignettes = T)
+
+#other packages for lmerSeq
+#if (!require("DESeq2")) install.packages("DESeq2"); 
+#library(DESeq2) 
+#if (!require("magrittr")) install.packages("magrittr"); 
+#library(magrittr) 
+#if (!require("limma")) install.packages("limma"); 
+#library(limma)
+#if (!require("dendextend")) install.packages("dendenxtend"); 
+#library(dendextend) # To create dendrograms
+#library(lmerSeq)
+
+#for REBEL analysis
+#install dependencies for RESCUE
+#scater, scran, scuttle
+#BiocManager::install("scater")
+#BiocManager::install("scran")
+#library(scran) #loads scuttle as part of it
+
+#install Matrix.utils for REBEL
+#remotes::install_github("cvarrichio/Matrix.utils") 
+
+#download RESCUE + REBEL - isntructions here: https://github.com/ewynn610/RESCUE and here: https://github.com/ewynn610/REBEL
+#devtools::install_github("https://github.com/ewynn610/Rescue",  build_vignettes = T)
+#devtools::install_github("https://github.com/ewynn610/REBEL", build_vignettes = TRUE)
+library(REBEL)
+library(dplyr)
+library(ggplot2)
+library(plotly)
+library(tidyr)
+
+#phylogenies
+library(ggtree)
+library(ape)
+library(treeio)
+
+#general tools
+library(stringr)
+```
+
+---
+
+# Clear workspace
+```{r clear workspace}
+rm(list = ls())
+```
+
+---
+
+# Read in data
+
+*Gene-level analysis*
+
+  + Read in sample metadata
+```{r read in metadata}
+
+#read in sample metadata
+meta <- read.delim("study_design.txt", header = TRUE, as.is = TRUE)
+
+#make the SAMPLE column the rownames
+rownames(meta) <- meta$SAMPLE
+
+#add a names column (for lmerSeq later)
+meta$names <- meta$SAMPLE
+
+#capture sample labels from the design study file
+sampleLabels <- meta$SAMPLE
+```
+
+  + Import variance-stabilized data
+```{r import vst, message = FALSE}
+#import
+vst_expr <- read_tsv("./variance_stabilized_counts_2025_02_20.tsv")
+
+#convert to matrix
+expr_mat <- as.matrix(vst_expr[,1:ncol(vst_expr)-1])
+rownames(expr_mat) <- vst_expr$geneID
+```
+
+  + Import gene annotations
+```{r import annotations, message = FALSE}
+#get annotations for transcripts by loading file from ncbi ---- WAS EDITED TO MATCH ORs ADDED FROM Mitchell's ANNOTATION----
+annotation_file <- ("Ppyr_annotations_ORmodified_2025_02_20.tsv")
+
+#Tx <- read_tsv(annotation_file)
+Tx <- read_tsv(annotation_file, col_names = c("target_id", "geneID", "name", "PpyrOR"), col_types = "cccc")
+
+Tx <- as_tibble(Tx)
+```
+
+# Analysis: Which genes/ORs are most highly expressed?
+
+ + Calculate average expression across tissue * sex combinations
+  
+```{r calculate expression rank}
+#calc average gene expression and standard deviation in relevant tissues, gene identity, OR identity
+my.pheromone.data.df <- as_tibble(expr_mat) %>% 
+  mutate(geneID = row.names(expr_mat)) %>%
+  rowwise() %>%
+  mutate(antenna.AVG = (SEL534ant + SEL535ant + SEL536ant + SEL543ant + SEL562ant + SEL627ant + SEL672ant)/7,
+         antenna.SD = sd(c(SEL534ant, SEL535ant, SEL536ant, SEL543ant, SEL562ant, SEL627ant, SEL672ant)),
+         leg.AVG = (SEL534BL + SEL535BL + SEL536BL + SEL543BL + SEL562BL + SEL627BL + SEL672BL)/7, 
+         leg.SD = sd(c(SEL534BL, SEL535BL, SEL536BL, SEL543BL, SEL562BL, SEL627BL, SEL672BL)), 
+         male.ant.AVG = (SEL534ant + SEL535ant + SEL536ant + SEL543ant)/4,
+         male.ant.SD = sd(c(SEL534ant, SEL535ant, SEL536ant, SEL543ant)),
+         male.leg.AVG = (SEL534BL + SEL535BL + SEL536BL + SEL543BL)/4,
+         male.leg.SD = sd(c(SEL534BL, SEL535BL, SEL536BL, SEL543BL)),
+         female.ant.AVG = (SEL562ant + SEL627ant + SEL672ant)/3,
+         female.ant.SD = sd(c(SEL562ant, SEL627ant, SEL672ant)),
+         female.leg.AVG = (SEL562BL + SEL627BL + SEL672BL)/3,
+         female.leg.SD = sd(c(SEL562BL, SEL627BL, SEL672BL)))
+
+#ungroup the rows
+my.pheromone.data.df <- my.pheromone.data.df %>%
+  ungroup()
+
+#Add annotations (but only distinct geneIDs from the Tx file- has isoforms in it, and want to keep the PpyrOR name associated with the gene ID, even if it only matched 1 isoform)
+Tx.with.PpyrORs.per.geneID <- Tx %>% 
+  group_by(geneID) %>%
+  distinct(PpyrOR, .keep_all = TRUE) %>%
+  arrange(PpyrOR)
+#checking
+#nrow(Tx) #37237
+#length(unique(Tx$geneID))#23,919
+#nrow(Tx.with.PpyrORs.per.geneID) #23,934
+
+#ungroup
+Tx.with.PpyrORs.per.geneID.ungrouped <- Tx.with.PpyrORs.per.geneID %>%
+  ungroup()
+
+#get one entry per geneID
+Tx.one.entry.per.geneID<- distinct(Tx.with.PpyrORs.per.geneID.ungrouped, geneID, .keep_all = TRUE)
+#checking
+# nrow(Tx.one.entry.per.geneID) #23,919
+# length(unique(Tx.one.entry.per.geneID$PpyrOR)) #102
+ 
+my.pheromone.data.df.expanded <- left_join(my.pheromone.data.df, Tx.one.entry.per.geneID, by = "geneID") 
+#nrow(my.pheromone.data.df.expanded) #13,338
+
+#add gene expression ranks by tissue/sex combo
+my.pheromone.data.df.expanded$male.ant.RANK <- rank(-my.pheromone.data.df.expanded$male.ant.AVG, ties.method = "min")
+my.pheromone.data.df.expanded$male.leg.RANK <- rank(-my.pheromone.data.df.expanded$male.leg.AVG, ties.method = "min")
+my.pheromone.data.df.expanded$female.ant.RANK <- rank(-my.pheromone.data.df.expanded$female.ant.AVG, ties.method = "min")
+my.pheromone.data.df.expanded$female.leg.RANK <- rank(-my.pheromone.data.df.expanded$female.leg.AVG, ties.method = "min")
+#nrow(my.pheromone.data.df.expanded) 13,338
+
+#get a subset of just ORs
+my.OR.data.df.expanded <- my.pheromone.data.df.expanded %>%
+    filter(!is.na(PpyrOR))
+
+#check to make sure is getting the "correct" subset
+#nrow(my.OR.data.df.expanded) #45
+
+### Extract the top 10 genes from each tissue * sex combo
+
+#extract top 10
+male.ant.top10 <- my.pheromone.data.df.expanded %>%
+  arrange(male.ant.RANK) %>%
+  select(name, male.ant.AVG, male.leg.AVG, female.ant.AVG, female.leg.AVG, male.ant.RANK, male.leg.RANK, female.ant.RANK, female.leg.RANK) %>%
+  slice_head(n = 10)
+
+#extract top 10
+female.ant.top10 <-my.pheromone.data.df.expanded %>%
+  arrange(female.ant.RANK) %>%
+  select(name, male.ant.AVG, male.leg.AVG, female.ant.AVG, female.leg.AVG, male.ant.RANK, male.leg.RANK, female.ant.RANK, female.leg.RANK) %>%
+  slice_head(n = 10)
+
+#extract top 10
+male.leg.top10 <- my.pheromone.data.df.expanded %>%
+  arrange(male.leg.RANK) %>%
+  select(geneID, name, male.ant.AVG, male.leg.AVG, female.ant.AVG, female.leg.AVG, male.ant.RANK, male.leg.RANK, female.ant.RANK, female.leg.RANK) %>%
+  slice_head(n = 10)
+
+#extract top 10
+female.leg.top10 <- my.pheromone.data.df.expanded %>%
+  arrange(female.leg.RANK) %>%
+  select(geneID, name, male.ant.AVG, male.leg.AVG, female.ant.AVG, female.leg.AVG, male.ant.RANK, male.leg.RANK, female.ant.RANK, female.leg.RANK) %>%
+  slice_head(n = 10)
+```
+
+## Which **genes** are most highly expressed? {.tabset}
+
+  + What are the **top 10 genes** in each tissue * sex condition?
+  
+### **Male antennae**
+```{r top 10 rank male antennae, results = 'asis'}
+
+#print nice table
+male.ant.top10 |>
+  gt() |>
+  tab_spanner(label = "Antenna", columns = contains("ant")) |>
+  tab_spanner(label = "Leg", columns = contains("leg")) |>
+  tab_spanner(label = "Mean Normalized Counts", columns = ends_with("AVG")) |>
+  tab_spanner(label = "Rank", columns = ends_with("RANK")) |>
+  cols_label(name = "Gene",
+             male.ant.AVG = "M", 
+             male.leg.AVG = "M",
+             male.ant.RANK = "M",
+             male.leg.RANK = "M",
+             female.ant.AVG = "F",
+             female.leg.AVG = "F",
+             female.ant.RANK = "F",
+             female.leg.RANK = "F") |>
+  fmt_number(columns = ends_with("AVG"),
+             decimals = 2) |>
+  fmt_number(columns = ends_with("RANK"),
+             use_seps = TRUE,
+             decimals = 0) |> 
+  tab_style(style = cell_fill(color = "#D4D4D4"),
+            locations = cells_body(columns = contains("leg") & starts_with("male"))) |>
+  tab_style(style = list(cell_fill(color = "#3C3C3C"), cell_text(color = "white")),
+            locations = cells_body(columns = contains("ant") & starts_with("male"))) |>
+  tab_style(style = list(cell_fill(color = "#717171"), cell_text(color = "white")),
+            locations = cells_body(columns = contains("ant") & starts_with("female"))) |>
+  tab_style(style = cell_fill(color = "#E5E5E5"),
+            locations = cells_body(columns = contains("leg") & starts_with("female"))) |>
+  tab_style(style = cell_text(weight = "bold"), 
+            locations = list(cells_column_labels(), cells_column_spanners(spanners =  c("Antenna", "Leg"))))
+```
+
+---------
+
+### **Female antennae**
+```{r top 10 rank female antennae}
+
+female.ant.top10 |>
+  gt() |>
+  tab_spanner(label = "Antenna", columns = contains("ant")) |>
+  tab_spanner(label = "Leg", columns = contains("leg")) |>
+  tab_spanner(label = "Mean Normalized Counts", columns = ends_with("AVG")) |>
+  tab_spanner(label = "Rank", columns = ends_with("RANK")) |>
+  cols_label(name = "Gene",
+             male.ant.AVG = "M", 
+             male.leg.AVG = "M",
+             male.ant.RANK = "M",
+             male.leg.RANK = "M",
+             female.ant.AVG = "F",
+             female.leg.AVG = "F",
+             female.ant.RANK = "F",
+             female.leg.RANK = "F") |>
+  fmt_number(columns = ends_with("AVG"),
+             decimals = 2) |>
+  fmt_number(columns = ends_with("RANK"),
+             use_seps = TRUE,
+             decimals = 0) |> 
+  tab_style(style = cell_fill(color = "#D4D4D4"),
+            locations = cells_body(columns = contains("leg") & starts_with("male"))) |>
+  tab_style(style = list(cell_fill(color = "#3C3C3C"), cell_text(color = "white")),
+            locations = cells_body(columns = contains("ant") & starts_with("male"))) |>
+  tab_style(style = list(cell_fill(color = "#717171"), cell_text(color = "white")),
+            locations = cells_body(columns = contains("ant") & starts_with("female"))) |>
+  tab_style(style = cell_fill(color = "#E5E5E5"),
+            locations = cells_body(columns = contains("leg") & starts_with("female"))) |>
+  tab_style(style = cell_text(weight = "bold"), 
+            locations = list(cells_column_labels(), cells_column_spanners(spanners =  c("Antenna", "Leg"))))
+
+
+```
+
+---------
+
+### **Male legs**
+```{r top 10 rank male leg}
+
+male.leg.top10 |>
+  gt() |>
+  tab_spanner(label = "Antenna", columns = contains("ant")) |>
+  tab_spanner(label = "Leg", columns = contains("leg")) |>
+  tab_spanner(label = "Mean Normalized Counts", columns = ends_with("AVG")) |>
+  tab_spanner(label = "Rank", columns = ends_with("RANK")) |>
+  cols_label(name = "Gene",
+             male.ant.AVG = "M", 
+             male.leg.AVG = "M",
+             male.ant.RANK = "M",
+             male.leg.RANK = "M",
+             female.ant.AVG = "F",
+             female.leg.AVG = "F",
+             female.ant.RANK = "F",
+             female.leg.RANK = "F") |>
+  fmt_number(columns = ends_with("AVG"),
+             decimals = 2) |>
+  fmt_number(columns = ends_with("RANK"),
+             use_seps = TRUE,
+             decimals = 0) |> 
+  tab_style(style = cell_fill(color = "#D4D4D4"),
+            locations = cells_body(columns = contains("leg") & starts_with("male"))) |>
+  tab_style(style = list(cell_fill(color = "#3C3C3C"), cell_text(color = "white")),
+            locations = cells_body(columns = contains("ant") & starts_with("male"))) |>
+  tab_style(style = list(cell_fill(color = "#717171"), cell_text(color = "white")),
+            locations = cells_body(columns = contains("ant") & starts_with("female"))) |>
+  tab_style(style = cell_fill(color = "#E5E5E5"),
+            locations = cells_body(columns = contains("leg") & starts_with("female"))) |>
+  tab_style(style = cell_text(weight = "bold"), 
+            locations = list(cells_column_labels(), cells_column_spanners(spanners =  c("Antenna", "Leg"))))
+```
+
+---------
+
+### **Female legs**
+```{r top 10 rank female leg}
+
+female.leg.top10 |>
+  gt() |>
+  tab_spanner(label = "Antenna", columns = contains("ant")) |>
+  tab_spanner(label = "Leg", columns = contains("leg")) |>
+  tab_spanner(label = "Mean Normalized Counts", columns = ends_with("AVG")) |>
+  tab_spanner(label = "Rank", columns = ends_with("RANK")) |>
+  cols_label(name = "Gene",
+             male.ant.AVG = "M", 
+             male.leg.AVG = "M",
+             male.ant.RANK = "M",
+             male.leg.RANK = "M",
+             female.ant.AVG = "F",
+             female.leg.AVG = "F",
+             female.ant.RANK = "F",
+             female.leg.RANK = "F") |>
+  fmt_number(columns = ends_with("AVG"),
+             decimals = 2) |>
+  fmt_number(columns = ends_with("RANK"),
+             use_seps = TRUE,
+             decimals = 0) |> 
+  tab_style(style = cell_fill(color = "#D4D4D4"),
+            locations = cells_body(columns = contains("leg") & starts_with("male"))) |>
+  tab_style(style = list(cell_fill(color = "#3C3C3C"), cell_text(color = "white")),
+            locations = cells_body(columns = contains("ant") & starts_with("male"))) |>
+  tab_style(style = list(cell_fill(color = "#717171"), cell_text(color = "white")),
+            locations = cells_body(columns = contains("ant") & starts_with("female"))) |>
+  tab_style(style = cell_fill(color = "#E5E5E5"),
+            locations = cells_body(columns = contains("leg") & starts_with("female"))) |>
+  tab_style(style = cell_text(weight = "bold"), 
+            locations = list(cells_column_labels(), cells_column_spanners(spanners =  c("Antenna", "Leg"))))
+```
+
+---------
+
+## How many of the **top ten genes** are shared?
+
+```{r find top 10}
+
+#display as a Venn Diagram
+x = list(male.ant.top10$name, female.ant.top10$name, male.leg.top10$name, female.leg.top10$name)
+ggVennDiagram(x, 
+              category.names = c("Antenna, M", "Antenna, F", "Leg, M", "Leg, F")) + ggplot2::scale_fill_gradient(low  = "#A0CBE8", high = "#4E79A7")
+
+#sort(intersect(male.ant.top10$name, female.ant.top10$name))
+#sort(intersect(male.leg.top10$name, female.leg.top10$name))
+#sort(intersect(male.ant.top10$name, male.leg.top10$name))
+#sort(intersect(female.ant.top10$name, female.leg.top10$name))
+
+```
+
+  + Overall, legs look similar to each other and different from antennae - most shared genes are actin, myosin, etc.
+  + Two genes are shared among the top 10 lists of all conditions - cytochrome P450 4g15-like (LOC116167561) and ADP,ATP carrier protein (LOC116180227). 
+
+---------
+
+
+## Which **ORs** are most highly expressed? {.tabset}
+
+  + What are the **top 10 ORs** in each tissue * sex condition?
+
+    + Orco not in top 10 for female legs, though present in all other lists (and first in both male and female antennae).
+    + PpyrOR18,23, 91included in all top 10 lists.
+    + PpyrOR6, is highest male antenna-specific (in top 10 list).
+    + Ppyr64 is antenna-specific (in top 10 lists).
+    + PpyrOR17PSE in top 10 female legs list (#10) - possibly functional?
+
+
+```{r find top 10 ORs}
+### Extract the top 10 ORs from each tissue * sex combo
+
+#extract top 10
+male.ant.top10.OR <- my.OR.data.df.expanded %>%
+  arrange(male.ant.RANK) %>%
+  select(PpyrOR, name, male.ant.AVG, male.leg.AVG, female.ant.AVG, female.leg.AVG, male.ant.RANK, male.leg.RANK, female.ant.RANK, female.leg.RANK) %>%
+  slice_head(n = 10)
+
+#extract top 10
+female.ant.top10.OR <-my.OR.data.df.expanded %>%
+  arrange(female.ant.RANK) %>%
+  select(PpyrOR, name, male.ant.AVG, male.leg.AVG, female.ant.AVG, female.leg.AVG, male.ant.RANK, male.leg.RANK, female.ant.RANK, female.leg.RANK) %>%
+  slice_head(n = 10)
+
+#extract top 10
+male.leg.top10.OR <- my.OR.data.df.expanded %>%
+  arrange(male.leg.RANK) %>%
+  select(PpyrOR, name, male.ant.AVG, male.leg.AVG, female.ant.AVG, female.leg.AVG, male.ant.RANK, male.leg.RANK, female.ant.RANK, female.leg.RANK) %>%
+  slice_head(n = 10)
+
+#extract top 10
+female.leg.top10.OR <- my.OR.data.df.expanded %>%
+  arrange(female.leg.RANK) %>%
+  select(PpyrOR, name, male.ant.AVG, male.leg.AVG, female.ant.AVG, female.leg.AVG, male.ant.RANK, male.leg.RANK, female.ant.RANK, female.leg.RANK) %>%
+  slice_head(n = 10)
+```
+
+### **Male antennae**
+```{r top 10 OR rank male antennae, results = 'asis'}
+
+#print nice table
+male.ant.top10.OR |>
+  gt() |>
+  tab_spanner(label = "Antenna", columns = contains("ant")) |>
+  tab_spanner(label = "Leg", columns = contains("leg")) |>
+  tab_spanner(label = "Mean Normalized Counts", columns = ends_with("AVG")) |>
+  tab_spanner(label = "Rank", columns = ends_with("RANK")) |>
+  cols_label(name = "Gene",
+             male.ant.AVG = "M", 
+             male.leg.AVG = "M",
+             male.ant.RANK = "M",
+             male.leg.RANK = "M",
+             female.ant.AVG = "F",
+             female.leg.AVG = "F",
+             female.ant.RANK = "F",
+             female.leg.RANK = "F") |>
+  fmt_number(columns = ends_with("AVG"),
+             decimals = 2) |>
+  fmt_number(columns = ends_with("RANK"),
+             use_seps = TRUE,
+             decimals = 0) |> 
+  tab_style(style = cell_fill(color = "#D4D4D4"),
+            locations = cells_body(columns = contains("leg") & starts_with("male"))) |>
+  tab_style(style = list(cell_fill(color = "#3C3C3C"), cell_text(color = "white")),
+            locations = cells_body(columns = contains("ant") & starts_with("male"))) |>
+  tab_style(style = list(cell_fill(color = "#717171"), cell_text(color = "white")),
+            locations = cells_body(columns = contains("ant") & starts_with("female"))) |>
+  tab_style(style = cell_fill(color = "#E5E5E5"),
+            locations = cells_body(columns = contains("leg") & starts_with("female"))) |>
+  tab_style(style = cell_text(weight = "bold"), 
+            locations = list(cells_column_labels(), cells_column_spanners(spanners =  c("Antenna", "Leg"))))
+```
+
+--------
+
+### **Female antennae**
+```{r top 10 OR rank female antennae, results = 'asis'}
+
+#print nice table
+female.ant.top10.OR |>
+  gt() |>
+  tab_spanner(label = "Antenna", columns = contains("ant")) |>
+  tab_spanner(label = "Leg", columns = contains("leg")) |>
+  tab_spanner(label = "Mean Normalized Counts", columns = ends_with("AVG")) |>
+  tab_spanner(label = "Rank", columns = ends_with("RANK")) |>
+  cols_label(name = "Gene",
+             male.ant.AVG = "M", 
+             male.leg.AVG = "M",
+             male.ant.RANK = "M",
+             male.leg.RANK = "M",
+             female.ant.AVG = "F",
+             female.leg.AVG = "F",
+             female.ant.RANK = "F",
+             female.leg.RANK = "F") |>
+  fmt_number(columns = ends_with("AVG"),
+             decimals = 2) |>
+  fmt_number(columns = ends_with("RANK"),
+             use_seps = TRUE,
+             decimals = 0) |> 
+  tab_style(style = cell_fill(color = "#D4D4D4"),
+            locations = cells_body(columns = contains("leg") & starts_with("male"))) |>
+  tab_style(style = list(cell_fill(color = "#3C3C3C"), cell_text(color = "white")),
+            locations = cells_body(columns = contains("ant") & starts_with("male"))) |>
+  tab_style(style = list(cell_fill(color = "#717171"), cell_text(color = "white")),
+            locations = cells_body(columns = contains("ant") & starts_with("female"))) |>
+  tab_style(style = cell_fill(color = "#E5E5E5"),
+            locations = cells_body(columns = contains("leg") & starts_with("female"))) |>
+  tab_style(style = cell_text(weight = "bold"), 
+            locations = list(cells_column_labels(), cells_column_spanners(spanners =  c("Antenna", "Leg"))))
+```
+
+--------
+
+### **Male legs**
+```{r top 10 OR rank male leg, results = 'asis'}
+
+#print nice table
+male.leg.top10.OR |>
+  gt() |>
+  tab_spanner(label = "Antenna", columns = contains("ant")) |>
+  tab_spanner(label = "Leg", columns = contains("leg")) |>
+  tab_spanner(label = "Mean Normalized Counts", columns = ends_with("AVG")) |>
+  tab_spanner(label = "Rank", columns = ends_with("RANK")) |>
+  cols_label(name = "Gene",
+             male.ant.AVG = "M", 
+             male.leg.AVG = "M",
+             male.ant.RANK = "M",
+             male.leg.RANK = "M",
+             female.ant.AVG = "F",
+             female.leg.AVG = "F",
+             female.ant.RANK = "F",
+             female.leg.RANK = "F") |>
+  fmt_number(columns = ends_with("AVG"),
+             decimals = 2) |>
+  fmt_number(columns = ends_with("RANK"),
+             use_seps = TRUE,
+             decimals = 0) |> 
+  tab_style(style = cell_fill(color = "#D4D4D4"),
+            locations = cells_body(columns = contains("leg") & starts_with("male"))) |>
+  tab_style(style = list(cell_fill(color = "#3C3C3C"), cell_text(color = "white")),
+            locations = cells_body(columns = contains("ant") & starts_with("male"))) |>
+  tab_style(style = list(cell_fill(color = "#717171"), cell_text(color = "white")),
+            locations = cells_body(columns = contains("ant") & starts_with("female"))) |>
+  tab_style(style = cell_fill(color = "#E5E5E5"),
+            locations = cells_body(columns = contains("leg") & starts_with("female"))) |>
+  tab_style(style = cell_text(weight = "bold"), 
+            locations = list(cells_column_labels(), cells_column_spanners(spanners =  c("Antenna", "Leg"))))
+```
+
+--------
+
+### **Female legs**
+```{r top 10 OR rank female legs, results = 'asis'}
+
+#print nice table
+female.leg.top10.OR |>
+  gt() |>
+  tab_spanner(label = "Antenna", columns = contains("ant")) |>
+  tab_spanner(label = "Leg", columns = contains("leg")) |>
+  tab_spanner(label = "Mean Normalized Counts", columns = ends_with("AVG")) |>
+  tab_spanner(label = "Rank", columns = ends_with("RANK")) |>
+  cols_label(name = "Gene",
+             male.ant.AVG = "M", 
+             male.leg.AVG = "M",
+             male.ant.RANK = "M",
+             male.leg.RANK = "M",
+             female.ant.AVG = "F",
+             female.leg.AVG = "F",
+             female.ant.RANK = "F",
+             female.leg.RANK = "F") |>
+  fmt_number(columns = ends_with("AVG"),
+             decimals = 2) |>
+  fmt_number(columns = ends_with("RANK"),
+             use_seps = TRUE,
+             decimals = 0) |> 
+  tab_style(style = cell_fill(color = "#D4D4D4"),
+            locations = cells_body(columns = contains("leg") & starts_with("male"))) |>
+  tab_style(style = list(cell_fill(color = "#3C3C3C"), cell_text(color = "white")),
+            locations = cells_body(columns = contains("ant") & starts_with("male"))) |>
+  tab_style(style = list(cell_fill(color = "#717171"), cell_text(color = "white")),
+            locations = cells_body(columns = contains("ant") & starts_with("female"))) |>
+  tab_style(style = cell_fill(color = "#E5E5E5"),
+            locations = cells_body(columns = contains("leg") & starts_with("female"))) |>
+  tab_style(style = cell_text(weight = "bold"), 
+            locations = list(cells_column_labels(), cells_column_spanners(spanners =  c("Antenna", "Leg"))))
+```
+
+---------
+
+## How many of the **top ten ORs** are shared?
+  
+```{r find top 10 shared ORs}
+
+#display as a Venn Diagram
+top.10.OR.lists <- list(male.ant.top10.OR$PpyrOR, female.ant.top10.OR$PpyrOR, male.leg.top10.OR$PpyrOR, female.leg.top10.OR$PpyrOR)
+ggVennDiagram(top.10.OR.lists, 
+              category.names = c("Antenna, M", "Antenna, F", "Leg, M", "Leg, F")) + ggplot2::scale_fill_gradient(low  = "#A0CBE8", high = "#4E79A7")
+```
+
+Overall, legs and antennae look different from each other, though sex difference is greater in antennae. If the ORs are shared between M + F antennae, then they are also usually shared with legs. 
+
+---------
+
+## Which **ORs** are NOT expressed?
+
+```{r not expressed}
+ORs.only <- Tx[!is.na(Tx$PpyrOR),]
+
+#nrow(ORs.only) #102
+ORs.not.expressed <- sort(setdiff(ORs.only$PpyrOR, my.OR.data.df.expanded$PpyrOR))
+
+n_PSE <- length(grep("PSE", Tx$PpyrOR)) #15 PSEs
+n_PSE.not.expressed <- length(grep("PSE", ORs.not.expressed)) #12 PSEs
+```
+
+  + `r length(ORs.not.expressed)` (`r round((length(ORs.not.expressed)/nrow(ORs.only))*100, 0)`%) ORs are "not expressed" - they didn't pass filtering in the expression dataset. They may be expressed in other life stages.
+  + `r n_PSE.not.expressed` of the `r n_PSE` (`r round((n_PSE.not.expressed/n_PSE)*100,0)`%) pseudogenized ORs (PSE) are in the "not expressed" list.
+  + `r n_PSE-n_PSE.not.expressed` (`r round(((n_PSE-n_PSE.not.expressed)/n_PSE)*100, 0)`%) OR PSEs did pass filtering and are expressed in adults, either in antennae or legs.
+
+---------
+
+# Analysis: Differential expression
+
+  + Fit the model
+```{r fit model REBEL, cache = TRUE, warning=FALSE, message=FALSE, results = "hide"}
+#set factors for analysis
+meta$TISSUE = factor(meta$TISSUE, levels = c("leg", "antenna"))
+meta$SEX = factor(meta$SEX, levels = c("F", "M"))
+
+#convert to Summarized Experiment format
+rse = SummarizedExperiment(assays = SimpleList(normcounts = as.matrix(expr_mat)), colData = meta)
+
+#fit the model
+res_reb = rebelFit(object = rse, fixedEffects = ~ TISSUE * SEX, #takes awhile
+                   subjectVariable = "INDIVIDUAL",
+                   pseudoBulk = T, 
+                   parallel = F,
+                   outputFits = TRUE)  
+```
+
+  + Calculate contrasts
+```{r calc contrasts REBEL, cache = TRUE}
+#calculate DE for all contrasts
+#male tissues: antenna vs leg
+reb.mant_v_mleg <- rebelTest(res_reb, contrast = c(0, 1, 0, 1)) #male antennae vs leg
+colnames(reb.mant_v_mleg) <- c("Estimate_mant_v_mleg", "Std.Error_mant_v_mleg", "t.value_mant_v_mleg", "df_mant_v_mleg", "p_val_raw_mant_v_mleg", "p_val_adj_mant_v_mleg")
+reb.mant_v_mleg$geneID <- row.names(reb.mant_v_mleg) #add row names
+
+#female tissues: antenna vs leg
+reb.fant_v_fleg = rebelTest(res_reb, contrast = c(0, 1, 0, 0)) #female antennae vs leg - same as lmerseq?
+colnames(reb.fant_v_fleg) <- c("Estimate_fant_v_fleg", "Std.Error_fant_v_fleg", "t.value_fant_v_fleg", "df_fant_v_fleg", "p_val_raw_fant_v_fleg", "p_val_adj_fant_v_fleg")
+reb.fant_v_fleg$geneID <- row.names(reb.fant_v_fleg) #add row names
+
+#antenna: male vs female
+reb.mant_v_fant = rebelTest(res_reb, contrast = c(0, 0, 1, 1)) #male antennae vs female antenna - same as lmerseq?
+colnames(reb.mant_v_fant) <- c("Estimate_mant_v_fant", "Std.Error_mant_v_fant", "t.value_mant_v_fant", "df_mant_v_fant", "p_val_raw_mant_v_fant", "p_val_adj_mant_v_fant")
+reb.mant_v_fant$geneID <- row.names(reb.mant_v_fant) #add row names
+
+#leg: male vs female
+reb.mleg_v_fleg = rebelTest(res_reb, contrast = c(0, 0, 1, 0)) #male leg vs female leg - same as lmerseq?
+colnames(reb.mleg_v_fleg) <- c("Estimate_mleg_v_fleg", "Std.Error_mleg_v_fleg", "t.value_mleg_v_fleg", "df_mleg_v_fleg", "p_val_raw_mleg_v_fleg", "p_val_adj_mleg_v_fleg")
+reb.mleg_v_fleg$geneID <- row.names(reb.mleg_v_fleg) #add row names
+
+#get into 1 big data table
+#are all gene IDs in the same order? if so - can just cbind these together? #or just do join_by?
+reb.tissue.comp <- left_join(reb.mant_v_mleg, reb.fant_v_fleg, by = "geneID")
+reb.sex.comp <- left_join(reb.mant_v_fant, reb.mleg_v_fleg, by = "geneID")
+reb.comp <- left_join(reb.tissue.comp, reb.sex.comp, by = "geneID")
+
+#combine with my.pheromone.data.df.expanded (has annotations)
+my.DE.data.df.expanded <- left_join(my.pheromone.data.df.expanded, reb.comp, by = "geneID")
+
+#get ORs just on own
+my.DE.OR.data.df.expanded <- my.DE.data.df.expanded %>%
+  filter(!is.na(PpyrOR))
+
+#nrow(my.DE.OR.data.df.expanded) #45 - yes!
+#export table (in nice order) as Supp table (big table)
+#write.table(my.DE.data.df.expanded, "2025_02_24_DE_table_expanded.txt", row.names = FALSE, sep ='\t')
+```
+
+  + Collate and organize results
+  
+```{r format the big table}
+my.DE.data.df.expanded <- my.DE.data.df.expanded %>%
+  mutate(OR = case_when(!is.na(PpyrOR) ~ "OR",
+                       TRUE ~"Other"),
+         DE_mant_v_mleg = ifelse(p_val_adj_mant_v_mleg < 0.05, "Significant", "Not significant"),
+         DE_fant_v_fleg = ifelse(p_val_adj_fant_v_fleg < 0.05, "Significant", "Not significant"),
+         DE_mant_v_fant = ifelse(p_val_adj_mant_v_fant < 0.05, "Significant", "Not significant"),
+         DE_mleg_v_fleg = ifelse(p_val_adj_mleg_v_fleg < 0.05, "Significant", "Not significant"),
+         Direction_mant_v_mleg = case_when(
+ #          Estimate_mant_v_mleg > 0.6 & p_val_adj_mant_v_mleg < 0.05 ~ "Upregulated",
+ #          Estimate_mant_v_mleg < -0.6 & p_val_adj_mant_v_mleg < 0.05 ~ "Downregulated",
+           Estimate_mant_v_mleg > 0 & p_val_adj_mant_v_mleg < 0.05 ~ "Upregulated",
+           Estimate_mant_v_mleg < 0 & p_val_adj_mant_v_mleg < 0.05 ~ "Downregulated",
+           TRUE ~ "Not significant"),
+         Direction_fant_v_fleg = case_when(
+#           Estimate_fant_v_fleg > 0.6 & p_val_adj_fant_v_fleg < 0.05 ~ "Upregulated",
+#           Estimate_fant_v_fleg < -0.6 & p_val_adj_fant_v_fleg < 0.05 ~ "Downregulated",
+           Estimate_fant_v_fleg > 0 & p_val_adj_fant_v_fleg < 0.05 ~ "Upregulated",
+           Estimate_fant_v_fleg < 0 & p_val_adj_fant_v_fleg < 0.05 ~ "Downregulated",
+           TRUE ~ "Not significant"),
+        Direction_mant_v_fant = case_when(
+#           Estimate_mant_v_fant > 0.6 & p_val_adj_mant_v_fant < 0.05 ~ "Upregulated",
+#           Estimate_mant_v_fant < -0.6 & p_val_adj_mant_v_fant < 0.05 ~ "Downregulated",
+           Estimate_mant_v_fant > 0 & p_val_adj_mant_v_fant < 0.05 ~ "Upregulated",
+           Estimate_mant_v_fant < 0 & p_val_adj_mant_v_fant < 0.05 ~ "Downregulated",
+           TRUE ~ "Not significant"),
+        Direction_mleg_v_fleg = case_when(
+#           Estimate_mleg_v_fleg > 0.6 & p_val_adj_mleg_v_fleg < 0.05 ~ "Upregulated",
+#           Estimate_mleg_v_fleg < -0.6 & p_val_adj_mleg_v_fleg < 0.05 ~ "Downregulated",
+            Estimate_mleg_v_fleg > 0 & p_val_adj_mleg_v_fleg < 0.05 ~ "Upregulated",
+           Estimate_mleg_v_fleg < 0 & p_val_adj_mleg_v_fleg < 0.05 ~ "Downregulated",
+           TRUE ~ "Not significant"))
+
+my.DE.data.df.expanded$Direction_mant_v_mleg <- factor(my.DE.data.df.expanded$Direction_mant_v_mleg, levels = c("Upregulated", "Not significant", "Downregulated"))
+my.DE.data.df.expanded$Direction_fant_v_fleg <- factor(my.DE.data.df.expanded$Direction_fant_v_fleg, levels = c("Upregulated", "Not significant", "Downregulated"))
+my.DE.data.df.expanded$Direction_mant_v_fant <- factor(my.DE.data.df.expanded$Direction_mant_v_fant, levels = c("Upregulated", "Not significant", "Downregulated"))
+my.DE.data.df.expanded$Direction_mleg_v_fleg <- factor(my.DE.data.df.expanded$Direction_mleg_v_fleg, levels = c("Upregulated", "Not significant", "Downregulated"))
+
+#the OR table
+my.DE.OR.data.df.expanded <- my.DE.data.df.expanded %>%
+  filter(!is.na(PpyrOR))
+
+#Orco table
+my.DE.ORco.data.df.expanded <- my.DE.data.df.expanded %>%
+  filter(PpyrOR == "Ppyr/Orco")
+
+```
+
+## Contrasts {.tabset}
+### Male: antenna v leg
+
+#### How many genes and ORs are DE in male antenna vs leg?  {.tabset}
+  
+```{r num DE genes ORs mant_v_mleg}
+m_tissue_DE <- my.DE.data.df.expanded %>%
+  filter(DE_mant_v_mleg == "Significant")
+
+mant_v_mleg_DE_ORs <- my.DE.OR.data.df.expanded %>%
+  filter(DE_mant_v_mleg == "Significant") %>%
+  arrange(desc(Estimate_mant_v_mleg), p_val_adj_mant_v_mleg) %>%
+  select(PpyrOR, Direction_mant_v_mleg, Estimate_mant_v_mleg, p_val_adj_mant_v_mleg, Estimate_fant_v_fleg, p_val_adj_fant_v_fleg, Estimate_mant_v_fant, p_val_adj_mant_v_fant, Estimate_mleg_v_fleg, p_val_adj_mleg_v_fleg)
+
+```
+
+  + `r nrow(m_tissue_DE) #3695` genes are significantly differentially expressed between male antenna and legs
+  + `r nrow(mant_v_mleg_DE_ORs)` ORs, out of 45 that passed the filter, (`r round((nrow(mant_v_mleg_DE_ORs)/45)*100, 2)`)% are DE between male antenna and leg.
+  
+##### Which genes and ORs are they?
+```{r DE genes mant_v_mleg volcano, warning=FALSE}
+#for ggplot
+my.mant_v_mleg.plot.volcano <- ggplot(my.DE.data.df.expanded, aes(x = Estimate_mant_v_mleg, y = -log10(p_val_adj_mant_v_mleg), color = Direction_mant_v_mleg)) +
+#  geom_vline(xintercept = c(-0.6, 0.6), col = "gray", linetype = "dashed") +
+  geom_hline(yintercept = -log10(0.05), col = "gray", linetype = "dashed") +
+  geom_point(size = 1) +
+  theme_set(theme_classic() +
+              theme(
+                axis.title.y = element_text(face = "bold", margin = margin(0,20,0,0), size = rel(1.1), color = 'black'),
+                axis.title.x = element_text(hjust = 0.5, face = "bold", margin = margin(20,0,0,0), size = rel(1.1), color = 'black'),
+                plot.title = element_text(hjust = 0.5)
+            )) +
+  coord_cartesian(ylim = c(0, 5), xlim = c(-9, 9)) + 
+  labs(color = "Expression",
+       x = expression("log"[2]*"FC"), y = expression("-log"[10]*"p-value")) + # for ggplot
+  scale_x_continuous(breaks = seq(-10, 10, 2)) +
+  scale_color_manual(values = c("#F28E2B", "#989ca3", "#4E79A7"),
+                     labels = c("Upregulated", "Not significant", "Downregulated"))
+
+#add circles, label Orco, OR6, male-specific ORs, and female-specific ORs
+my.mant_v_mleg.plot.volcano.labels <- my.mant_v_mleg.plot.volcano +
+  geom_point(data = my.DE.OR.data.df.expanded, mapping = aes(x=Estimate_mant_v_mleg, y=-log10(p_val_adj_mant_v_mleg), fill = Direction_mant_v_mleg), color = "black", size = 1.2, shape = 21) +
+  scale_fill_manual(values =  c("#F28E2B", "#989ca3", "#4E79A7")) +
+  guides(fill = "none") +
+  geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "Ppyr/Orco"), label = "Orco", color = "black", size = 3, hjust = -0.2, vjust = 0.2) +
+  #DE in male antennae
+  geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "PpyrOR6"), label = "OR6", color = "black", size = 3, hjust = -0.2, vjust = 0.2) +
+  #male-specific DE
+  geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "PpyrOR99"), label = "OR99", color = "black", size = 3, hjust = -1.2, vjust = -1) +
+    geom_segment(data = my.DE.OR.data.df.expanded %>% filter(PpyrOR == "PpyrOR99"), aes(x = Estimate_mant_v_mleg, y = -log10(p_val_adj_mant_v_mleg), xend = Estimate_mant_v_mleg + 2.15, yend = -log10(p_val_adj_mant_v_mleg) + .18), color = "grey28") +
+  geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "PpyrOR66"), label = "OR66", color = "black", size = 3, hjust = -1.5, vjust = -0.9) +
+    geom_segment(data = my.DE.OR.data.df.expanded %>% filter(PpyrOR == "PpyrOR66"), aes(x = Estimate_mant_v_mleg, y = -log10(p_val_adj_mant_v_mleg), xend = Estimate_mant_v_mleg + 2.7, yend = -log10(p_val_adj_mant_v_mleg) + 0.18), color = "grey28") +
+  #female-specific # F: 23, 27, 80, 15, 63, 58PSE
+
+  geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "PpyrOR58PSE"), label = "OR58PSE", color = "black", size =3, hjust = -0.88, vjust = 1.1) +
+  geom_segment(data = my.DE.OR.data.df.expanded %>% filter(PpyrOR == "PpyrOR58PSE"), aes(x = Estimate_mant_v_mleg, y = -log10(p_val_adj_mant_v_mleg), xend = Estimate_mant_v_mleg + 2.8, yend = -log10(p_val_adj_mant_v_mleg) + -0.1), color = "grey28") +
+  
+    geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "PpyrOR23"), label = "OR23", color = "black", size = 3, hjust = -1.35, vjust = 1.37) +
+    geom_segment(data = my.DE.OR.data.df.expanded %>% filter(PpyrOR == "PpyrOR23"), aes(x = Estimate_mant_v_mleg, y = -log10(p_val_adj_mant_v_mleg), xend = Estimate_mant_v_mleg + 2.4, yend = -log10(p_val_adj_mant_v_mleg) + -0.14), color = "grey28") +
+
+  geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "PpyrOR27"), label = "OR27", color = "black", size =3, hjust = -1.52, vjust = 1.6) +
+      geom_segment(data = my.DE.OR.data.df.expanded %>% filter(PpyrOR == "PpyrOR27"), aes(x = Estimate_mant_v_mleg, y = -log10(p_val_adj_mant_v_mleg), xend = Estimate_mant_v_mleg + 2.73, yend = -log10(p_val_adj_mant_v_mleg) + -0.17), color = "grey28") +
+  
+  geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "PpyrOR15"), label = "OR15", color = "black", size = 3, hjust = -1.56, vjust = 1.82) +
+    geom_segment(data = my.DE.OR.data.df.expanded %>% filter(PpyrOR == "PpyrOR15"), aes(x = Estimate_mant_v_mleg, y = -log10(p_val_adj_mant_v_mleg), xend = Estimate_mant_v_mleg + 2.8, yend = -log10(p_val_adj_mant_v_mleg) + -0.2), color = "grey28") +
+  
+    geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "PpyrOR80"), label = "OR80", color = "black", size = 3, hjust = -1.65, vjust = 2.2) +
+    geom_segment(data = my.DE.OR.data.df.expanded %>% filter(PpyrOR == "PpyrOR80"), aes(x = Estimate_mant_v_mleg, y = -log10(p_val_adj_mant_v_mleg), xend = Estimate_mant_v_mleg + 2.95, yend = -log10(p_val_adj_mant_v_mleg) + -0.25), color = "grey28") +
+  geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "PpyrOR63"), label = "OR63", color = "black", size = 3, hjust = -1.64, vjust = 3) +
+  geom_segment(data = my.DE.OR.data.df.expanded %>% filter(PpyrOR == "PpyrOR63"), aes(x = Estimate_mant_v_mleg, y = -log10(p_val_adj_mant_v_mleg), xend = Estimate_mant_v_mleg + 2.89, yend = -log10(p_val_adj_mant_v_mleg) + -0.35), color = "grey28") +  
+    force_panelsizes(rows = unit(85, "mm"),
+                   cols = unit(85, "mm"))
+
+my.mant_v_mleg.plot.volcano.labels
+
+#for plotly
+my.mant_v_mleg.plot <- ggplot(my.DE.data.df.expanded, aes(x = Estimate_mant_v_mleg, y = -log10(p_val_adj_mant_v_mleg), color = Direction_mant_v_mleg, text = name)) +
+  geom_vline(xintercept = c(-0.6, 0.6), col = "gray", linetype = "dashed") +
+  geom_hline(yintercept = -log10(0.05), col = "gray", linetype = "dashed") +
+  geom_point(size = 1) +
+  theme_set(theme_classic() +
+              theme(
+                axis.title.y = element_text(face = "bold", margin = margin(0,20,0,0), size = rel(1.1), color = 'black'),
+                axis.title.x = element_text(hjust = 0.5, face = "bold", margin = margin(20,0,0,0), size = rel(1.1), color = 'black'),
+                plot.title = element_text(hjust = 0.5)
+            )) +
+  coord_cartesian(ylim = c(0, 5), xlim = c(-10, 10)) + 
+  labs(color = "Male antenna v leg",
+#       x = expression("log"[2]*"FC"), y = expression("-log"[10]*"p-value")) + # for ggplot
+        x = "log<sub>2</sub>FC", y = "-log<sub>10</sub>p-value") + #for plotly
+  scale_x_continuous(breaks = seq(-10, 10, 2)) +
+  scale_color_manual(values = c("#F28E2B", "#989ca3", "#4E79A7"),
+                     labels = c("Upregulated", "Not significant", "Downregulated")) #why doesn't this work?
+
+my.mant_v_mleg.plot.circles <- my.mant_v_mleg.plot +
+  geom_point(data = my.DE.OR.data.df.expanded, mapping = aes(x=Estimate_mant_v_mleg, y=-log10(p_val_adj_mant_v_mleg), fill = Direction_mant_v_mleg, text = PpyrOR), color = "black", size = 1.2, shape = 21) +
+  scale_fill_manual(values =  c("#F28E2B", "#989ca3", "#4E79A7")) +
+  guides(fill = "none")
+
+ggplotly(my.mant_v_mleg.plot.circles)
+```
+
+Circle with bold outline = ORs that passed filtering
+
+---------
+
+##### Top 25 DE **gene** list
+```{r top 25 DE genes mant v mleg}
+mant_v_mleg_DE_genes <- my.DE.data.df.expanded %>%
+  filter(p_val_adj_mant_v_mleg < 0.05) %>%
+  arrange(desc(Estimate_mant_v_mleg), p_val_adj_mant_v_mleg) %>%
+  select(name, Estimate_mant_v_mleg, p_val_adj_mant_v_mleg, Estimate_fant_v_fleg, p_val_adj_fant_v_fleg, Estimate_mant_v_fant, p_val_adj_mant_v_fant, Estimate_mleg_v_fleg, p_val_adj_mleg_v_fleg)
+
+#nrow(mant_v_mleg_DE_genes) #3695 genes are DE
+
+mant_v_mleg_DE_genes.top25 <- mant_v_mleg_DE_genes %>%
+  slice_head(n = 25)
+
+mant_v_mleg_DE_genes.top25 |>
+  gt() |>
+  tab_spanner(label = "Male tissue AvL", columns = ends_with("mant_v_mleg")) |>
+  tab_spanner(label = "Female tissue AvL", columns = ends_with("fant_v_fleg")) |>
+  tab_spanner(label = "Antenna MvF", columns = ends_with("mant_v_fant")) |>
+  tab_spanner(label = "Leg MvF", columns = ends_with("mleg_v_fleg")) |>
+  cols_label(name = "Gene",
+             Estimate_mant_v_mleg = "log2FC", 
+             p_val_adj_mant_v_mleg = "p",
+             Estimate_fant_v_fleg = "log2FC",
+             p_val_adj_fant_v_fleg = "p",
+             Estimate_mant_v_fant = "log2FC",
+             p_val_adj_mant_v_fant = "p",
+             Estimate_mleg_v_fleg = "log2FC",
+             p_val_adj_mleg_v_fleg = "p") |>
+  fmt_number(decimals = 2) |>
+  tab_style(style = cell_fill(color = "#D4D4D4"),
+            locations = cells_body(columns = ends_with("mant_v_mleg"))) |>
+   tab_style(style = cell_fill(color = "#D4D4D4"),
+            locations = cells_body(columns = ends_with("mant_v_fant"))) |> 
+  tab_style(style = cell_text(weight = "bold"), 
+            locations = list(cells_column_labels(), cells_column_spanners(spanners =  c("Male tissue AvL", "Female tissue AvL", "Antenna MvF", "Leg MvF"))))
+```
+
+---------
+
+##### DE **OR** list
+```{r num DE ORs mant_v_mleg}
+mant_v_mleg_DE_ORs %>%
+  select(PpyrOR, Estimate_mant_v_mleg, p_val_adj_mant_v_mleg, Estimate_fant_v_fleg, p_val_adj_fant_v_fleg, Estimate_mant_v_fant, p_val_adj_mant_v_fant, Estimate_mleg_v_fleg, p_val_adj_mleg_v_fleg) |>
+  gt() |>
+  tab_spanner(label = "Male tissue AvL", columns = ends_with("mant_v_mleg")) |>
+  tab_spanner(label = "Female tissue AvL", columns = ends_with("fant_v_fleg")) |>
+  tab_spanner(label = "Antenna MvF", columns = ends_with("mant_v_fant")) |>
+  tab_spanner(label = "Leg MvF", columns = ends_with("mleg_v_fleg")) |>
+  cols_label(PpyrOR = "OR",
+             Estimate_mant_v_mleg = "log2FC", 
+             p_val_adj_mant_v_mleg = "p",
+             Estimate_fant_v_fleg = "log2FC",
+             p_val_adj_fant_v_fleg = "p",
+             Estimate_mant_v_fant = "log2FC",
+             p_val_adj_mant_v_fant = "p",
+             Estimate_mleg_v_fleg = "log2FC",
+             p_val_adj_mleg_v_fleg = "p") |>
+  fmt_number(decimals = 2) |>
+  tab_style(style = cell_fill(color = "#D4D4D4"),
+            locations = cells_body(columns = ends_with("mant_v_mleg"))) |>
+   tab_style(style = cell_fill(color = "#D4D4D4"),
+            locations = cells_body(columns = ends_with("mant_v_fant"))) |> 
+  tab_style(style = cell_text(weight = "bold"), 
+            locations = list(cells_column_labels(), cells_column_spanners(spanners =  c("Male tissue AvL", "Female tissue AvL", "Antenna MvF", "Leg MvF"))))
+```
+
+---------
+
+### Female: antenna v leg
+
+#### How many genes and ORs are DE in female antenna vs leg? {.tabset}
+  
+```{r num DE genes + ORs fant_v_fleg}
+f_tissue_DE <- my.DE.data.df.expanded %>%
+  filter(DE_fant_v_fleg == "Significant")
+
+fant_v_fleg_DE_ORs <- my.DE.OR.data.df.expanded %>%
+  filter(DE_fant_v_fleg == "Significant") %>%
+  arrange(desc(Estimate_fant_v_fleg), p_val_adj_fant_v_fleg) %>%
+  select(PpyrOR, Estimate_mant_v_mleg, p_val_adj_mant_v_mleg, Estimate_fant_v_fleg, p_val_adj_fant_v_fleg, Estimate_mant_v_fant, p_val_adj_mant_v_fant, Estimate_mleg_v_fleg, p_val_adj_mleg_v_fleg)
+
+```
+
+  + `r nrow(f_tissue_DE) #3015` genes are significantly differentially expressed between female antenna and legs
+  + `r nrow(fant_v_fleg_DE_ORs) #36` ORs, out of 45 that passed the filter, (`r round((nrow(fant_v_fleg_DE_ORs)/45)*100, 2)`)% are DE between female antenna and leg.
+
+##### Which genes and ORs are they?
+```{r DE genes fant_v_fleg volcano, warning=FALSE}
+#for ggplot
+my.fant_v_fleg.plot.volcano <- ggplot(my.DE.data.df.expanded, aes(x = Estimate_fant_v_fleg, y = -log10(p_val_adj_fant_v_fleg), color = Direction_fant_v_fleg)) +
+#  geom_vline(xintercept = c(-0.6, 0.6), col = "gray", linetype = "dashed") +
+  geom_hline(yintercept = -log10(0.05), col = "gray", linetype = "dashed") +
+  geom_point(size = 1) +
+  theme_set(theme_classic() +
+              theme(
+                axis.title.y = element_text(face = "bold", margin = margin(0,20,0,0), size = rel(1.1), color = 'black'),
+                axis.title.x = element_text(hjust = 0.5, face = "bold", margin = margin(20,0,0,0), size = rel(1.1), color = 'black'),
+                plot.title = element_text(hjust = 0.5)
+            )) +
+  coord_cartesian(ylim = c(0, 5), xlim = c(-9, 9)) + 
+  labs(color = "Female antenna v leg",
+       x = expression("log"[2]*"FC"), y = expression("-log"[10]*"p-value")) + # for ggplot
+  scale_x_continuous(breaks = seq(-10, 10, 2)) +
+  scale_color_manual(values = c("#F28E2B", "#989ca3", "#4E79A7"),
+                     labels = c("Upregulated", "Not significant", "Downregulated"))
+
+#add circles, label Orco, OR6, OR66 and 99, OR 15,23,27,58PSE,63,80
+my.fant_v_fleg.plot.volcano.labels <- my.fant_v_fleg.plot.volcano +
+  geom_point(data = my.DE.OR.data.df.expanded, mapping = aes(x=Estimate_fant_v_fleg, y=-log10(p_val_adj_fant_v_fleg), fill = Direction_fant_v_fleg), color = "black", size = 1.2, shape = 21) +
+  scale_fill_manual(values =  c("#F28E2B", "#989ca3", "#4E79A7")) +
+  guides(fill = "none") +
+  theme(legend.position = "none") +
+  geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "Ppyr/Orco"), label = "Orco", color = "black", size = 3, hjust = -0.05, vjust = -0.45) +
+  
+  geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "PpyrOR80"), label = "OR80", color = "black", size = 3, hjust = -2.22, vjust = -1.8) +
+  geom_segment(data = my.DE.OR.data.df.expanded %>% filter(PpyrOR == "PpyrOR80"), aes(x = Estimate_fant_v_fleg, y = -log10(p_val_adj_fant_v_fleg), xend = Estimate_fant_v_fleg + 4, yend = -log10(p_val_adj_fant_v_fleg) + 0.3), color = "grey28") +
+  
+   geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "PpyrOR27"), label = "OR27", color = "black", size = 3, hjust = -2.17, vjust = -3.6) +
+  geom_segment(data = my.DE.OR.data.df.expanded %>% filter(PpyrOR == "PpyrOR27"), aes(x = Estimate_fant_v_fleg, y = -log10(p_val_adj_fant_v_fleg), xend = Estimate_fant_v_fleg + 3.9, yend = -log10(p_val_adj_fant_v_fleg) + 0.55), color = "grey28") +
+  
+   geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "PpyrOR58PSE"), label = "OR58PSE", color = "black", size = 3, hjust = -1.35, vjust = -2.9) +
+  geom_segment(data = my.DE.OR.data.df.expanded %>% filter(PpyrOR == "PpyrOR58PSE"), aes(x = Estimate_fant_v_fleg, y = -log10(p_val_adj_fant_v_fleg), xend = Estimate_fant_v_fleg + 4.26, yend = -log10(p_val_adj_fant_v_fleg) + 0.45), color = "grey28") +
+   
+   geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "PpyrOR6"), label = "OR6", color = "black", size = 3, hjust = -2.85, vjust = -2.4) +
+  geom_segment(data = my.DE.OR.data.df.expanded %>% filter(PpyrOR == "PpyrOR6"), aes(x = Estimate_fant_v_fleg, y = -log10(p_val_adj_fant_v_fleg), xend = Estimate_fant_v_fleg + 4.05, yend = -log10(p_val_adj_fant_v_fleg) +  0.39), color = "grey28") +
+  
+     geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "PpyrOR63"), label = "OR63", color = "black", size = 3, hjust = -2.37, vjust = -1.8) +
+  geom_segment(data = my.DE.OR.data.df.expanded %>% filter(PpyrOR == "PpyrOR63"), aes(x = Estimate_fant_v_fleg, y = -log10(p_val_adj_fant_v_fleg), xend = Estimate_fant_v_fleg + 4.25, yend = -log10(p_val_adj_fant_v_fleg) + 0.315), color = "grey28") +
+  
+    geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "PpyrOR23"), label = "OR23", color = "black", size = 3, hjust = -2.07, vjust = -0.6) +
+  geom_segment(data = my.DE.OR.data.df.expanded %>% filter(PpyrOR == "PpyrOR23"), aes(x = Estimate_fant_v_fleg, y = -log10(p_val_adj_fant_v_fleg), xend = Estimate_fant_v_fleg + 3.7, yend = -log10(p_val_adj_fant_v_fleg) + 0.132), color = "grey28") +
+  
+    geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "PpyrOR15"), label = "OR15", color = "black", size = 3, hjust = -2.3, vjust = 0.4) +
+  geom_segment(data = my.DE.OR.data.df.expanded %>% filter(PpyrOR == "PpyrOR15"), aes(x = Estimate_fant_v_fleg, y = -log10(p_val_adj_fant_v_fleg), xend = Estimate_fant_v_fleg + 4.15, yend = -log10(p_val_adj_fant_v_fleg) + 0.07), color = "grey28") +
+  
+   geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "PpyrOR66"), label = "OR66", color = "black", size = 3, hjust = -2.42, vjust = 1.4) +
+  geom_segment(data = my.DE.OR.data.df.expanded %>% filter(PpyrOR == "PpyrOR66"), aes(x = Estimate_fant_v_fleg, y = -log10(p_val_adj_fant_v_fleg), xend = Estimate_fant_v_fleg + 4.36, yend = -log10(p_val_adj_fant_v_fleg) + -0.12), color = "grey28") +
+  
+  geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "PpyrOR99"), label = "OR99", color = "black", size = 3, hjust = -2.5, vjust = 1.75) +
+    geom_segment(data = my.DE.OR.data.df.expanded %>% filter(PpyrOR == "PpyrOR99"), aes(x = Estimate_fant_v_fleg, y = -log10(p_val_adj_fant_v_fleg), xend = Estimate_fant_v_fleg + 4.5, yend = -log10(p_val_adj_fant_v_fleg) + -0.19), color = "grey28") +
+  
+    force_panelsizes(rows = unit(85, "mm"),
+                   cols = unit(85, "mm"))
+
+
+my.fant_v_fleg.plot.volcano.labels
+
+#for plotly
+my.fant_v_fleg.plot <- ggplot(my.DE.data.df.expanded, aes(x = Estimate_fant_v_fleg, y = -log10(p_val_adj_fant_v_fleg), color = Direction_fant_v_fleg, text = name)) +
+  geom_vline(xintercept = c(-0.6, 0.6), col = "gray", linetype = "dashed") +
+  geom_hline(yintercept = -log10(0.05), col = "gray", linetype = "dashed") +
+  geom_point(size = 1) +
+  theme_set(theme_classic() +
+              theme(
+                axis.title.y = element_text(face = "bold", margin = margin(0,20,0,0), size = rel(1.1), color = 'black'),
+                axis.title.x = element_text(hjust = 0.5, face = "bold", margin = margin(20,0,0,0), size = rel(1.1), color = 'black'),
+                plot.title = element_text(hjust = 0.5)
+            )) +
+  coord_cartesian(ylim = c(0, 5), xlim = c(-10, 10)) + 
+  labs(color = "Female antenna v leg",
+#       x = expression("log"[2]*"FC"), y = expression("-log"[10]*"p-value")) + # for ggplot
+        x = "log<sub>2</sub>FC", y = "-log<sub>10</sub>p-value") + #for plotly
+  scale_x_continuous(breaks = seq(-10, 10, 2)) +
+  scale_color_manual(values = c("#F28E2B", "#989ca3", "#4E79A7"),
+                     labels = c("Upregulated", "Not significant", "Downregulated")) #why doesn't this work?
+
+my.fant_v_fleg.plot.circles <- my.fant_v_fleg.plot +
+  geom_point(data = my.DE.OR.data.df.expanded, mapping = aes(x=Estimate_fant_v_fleg, y=-log10(p_val_adj_fant_v_fleg), fill = Direction_fant_v_fleg, text = PpyrOR), color = "black", size = 1.2, shape = 21) +
+  scale_fill_manual(values =  c("#F28E2B", "#989ca3", "#4E79A7")) +
+  guides(fill = "none")
+
+ggplotly(my.fant_v_fleg.plot.circles)
+```
+
+Circle with bold outline = ORs that passed filtering
+
+---------
+  
+##### Top 25 DE **gene** list
+```{r top 25 DE genes fant v fleg}
+fant_v_fleg_DE_genes <- my.DE.data.df.expanded %>%
+  filter(p_val_adj_fant_v_fleg < 0.05) %>%
+  arrange(desc(Estimate_fant_v_fleg), p_val_adj_fant_v_fleg) %>%
+  select(name, Estimate_mant_v_mleg, p_val_adj_mant_v_mleg, Estimate_fant_v_fleg, p_val_adj_fant_v_fleg, Estimate_mant_v_fant, p_val_adj_mant_v_fant, Estimate_mleg_v_fleg, p_val_adj_mleg_v_fleg)
+
+fant_v_fleg_DE_genes.top25 <- fant_v_fleg_DE_genes %>%
+  slice_head(n = 25)
+
+fant_v_fleg_DE_genes.top25 |>
+  gt() |>
+  tab_spanner(label = "Male tissue AvL", columns = ends_with("mant_v_mleg")) |>
+  tab_spanner(label = "Female tissue AvL", columns = ends_with("fant_v_fleg")) |>
+  tab_spanner(label = "Antenna MvF", columns = ends_with("mant_v_fant")) |>
+  tab_spanner(label = "Leg MvF", columns = ends_with("mleg_v_fleg")) |>
+  cols_label(name = "Gene",
+             Estimate_mant_v_mleg = "log2FC", 
+             p_val_adj_mant_v_mleg = "p",
+             Estimate_fant_v_fleg = "log2FC",
+             p_val_adj_fant_v_fleg = "p",
+             Estimate_mant_v_fant = "log2FC",
+             p_val_adj_mant_v_fant = "p",
+             Estimate_mleg_v_fleg = "log2FC",
+             p_val_adj_mleg_v_fleg = "p") |>
+  fmt_number(decimals = 2) |>
+  tab_style(style = cell_fill(color = "#D4D4D4"),
+            locations = cells_body(columns = ends_with("mant_v_mleg"))) |>
+   tab_style(style = cell_fill(color = "#D4D4D4"),
+            locations = cells_body(columns = ends_with("mant_v_fant"))) |> 
+  tab_style(style = cell_text(weight = "bold"), 
+            locations = list(cells_column_labels(), cells_column_spanners(spanners =  c("Male tissue AvL", "Female tissue AvL", "Antenna MvF", "Leg MvF"))))
+```
+
+---------
+
+##### DE **OR** list
+
+```{r num DE ORs fant_v_fleg}
+
+fant_v_fleg_DE_ORs |>
+  gt() |>
+  tab_spanner(label = "Male tissue AvL", columns = ends_with("mant_v_mleg")) |>
+  tab_spanner(label = "Female tissue AvL", columns = ends_with("fant_v_fleg")) |>
+  tab_spanner(label = "Antenna MvF", columns = ends_with("mant_v_fant")) |>
+  tab_spanner(label = "Leg MvF", columns = ends_with("mleg_v_fleg")) |>
+  cols_label(PpyrOR = "OR",
+             Estimate_mant_v_mleg = "log2FC", 
+             p_val_adj_mant_v_mleg = "p",
+             Estimate_fant_v_fleg = "log2FC",
+             p_val_adj_fant_v_fleg = "p",
+             Estimate_mant_v_fant = "log2FC",
+             p_val_adj_mant_v_fant = "p",
+             Estimate_mleg_v_fleg = "log2FC",
+             p_val_adj_mleg_v_fleg = "p") |>
+  fmt_number(decimals = 2) |>
+  tab_style(style = cell_fill(color = "#D4D4D4"),
+            locations = cells_body(columns = ends_with("mant_v_mleg"))) |>
+   tab_style(style = cell_fill(color = "#D4D4D4"),
+            locations = cells_body(columns = ends_with("mant_v_fant"))) |> 
+  tab_style(style = cell_text(weight = "bold"), 
+            locations = list(cells_column_labels(), cells_column_spanners(spanners =  c("Male tissue AvL", "Female tissue AvL", "Antenna MvF", "Leg MvF"))))
+```
+
+---------
+
+### Antennae: M v F
+
+#### How many genes and ORs DE in male antenna vs female antenna? {.tabset}
+  
+```{r num DE genes ORs mant_v_fant}
+antenna_DE <- my.DE.data.df.expanded %>%
+  filter(DE_mant_v_fant == "Significant")
+
+mant_v_fant_DE_ORs <- my.DE.OR.data.df.expanded %>%
+  filter(DE_mant_v_fant == "Significant") %>%
+  arrange(desc(Estimate_mant_v_fant), p_val_adj_mant_v_fant) %>%
+  select(PpyrOR, Estimate_mant_v_mleg, p_val_adj_mant_v_mleg, Estimate_fant_v_fleg, p_val_adj_fant_v_fleg, Estimate_mant_v_fant, p_val_adj_mant_v_fant, Estimate_mleg_v_fleg, p_val_adj_mleg_v_fleg)
+```
+
+  + `r nrow(antenna_DE) #1` gene is significantly differentially expressed between male and female antenna.
+  + `r nrow(mant_v_fant_DE_ORs) #1` OR, out of 45 that passed the filter, (`r round((nrow(mant_v_fant_DE_ORs)/45)*100, 2)`)% is DE between male and female antenna.
+
+##### Which genes and ORs are they?
+```{r mant_v_fant volcano plot, warning = FALSE}
+#for ggplot
+my.mant_v_fant.plot.volcano <- ggplot(my.DE.data.df.expanded, aes(x = Estimate_mant_v_fant, y = -log10(p_val_adj_mant_v_fant), color = Direction_mant_v_fant)) +
+#  geom_vline(xintercept = c(-0.6, 0.6), col = "gray", linetype = "dashed") +
+  geom_hline(yintercept = -log10(0.05), col = "gray", linetype = "dashed") +
+  geom_point(size = 1) +
+  theme_set(theme_classic() +
+              theme(
+                axis.title.y = element_text(face = "bold", margin = margin(0,20,0,0), size = rel(1.1), color = 'black'),
+                axis.title.x = element_text(hjust = 0.5, face = "bold", margin = margin(20,0,0,0), size = rel(1.1), color = 'black'),
+                plot.title = element_text(hjust = 0.5)
+            )) +
+  coord_cartesian(ylim = c(0, 5), xlim = c(-9, 9)) + 
+  labs(color = "Male v female antenna",
+       x = expression("log"[2]*"FC"), y = expression("-log"[10]*"p-value")) + # for ggplot
+  scale_x_continuous(breaks = seq(-10, 10, 2)) +
+  scale_color_manual(values = c("#F28E2B", "#989ca3", "#4E79A7"),
+                     labels = c("Upregulated", "Not significant", "Downregulated"))
+
+#add circles, label ORco and OR6
+my.mant_v_fant.plot.volcano.labels <- my.mant_v_fant.plot.volcano +
+  geom_point(data = my.DE.OR.data.df.expanded, mapping = aes(x=Estimate_mant_v_fant, y=-log10(p_val_adj_mant_v_fant), fill = Direction_mant_v_fant), color = "black", size = 1.2, shape = 21) +
+  scale_fill_manual(values =  c("#F28E2B", "#989ca3", "#4E79A7")) +
+  guides(fill = "none") +
+  theme(legend.position = "none") +
+  geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "Ppyr/Orco"), label = "Orco", color = "black", size = 3, hjust = -1.5, vjust = 0.2) +
+  geom_segment(data = my.DE.OR.data.df.expanded %>% filter(PpyrOR == "Ppyr/Orco"), aes(x = Estimate_mant_v_fant, y = -log10(p_val_adj_mant_v_fant), xend = Estimate_mant_v_fant + 2.5, yend = -log10(p_val_adj_mant_v_fant) + 0.03), color = "grey28") +
+  geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "PpyrOR6"), label = "OR6", color = "black", size = 3, hjust = -0.2, vjust = 0.2) +
+    force_panelsizes(rows = unit(85, "mm"),
+                   cols = unit(85, "mm"))
+
+my.mant_v_fant.plot.volcano.labels
+
+
+#for plotly
+my.mant_v_fant.plot <- ggplot(my.DE.data.df.expanded, aes(x = Estimate_mant_v_fant, y = -log10(p_val_adj_mant_v_fant), color = Direction_mant_v_fant, text = name)) +
+  geom_vline(xintercept = c(-0.6, 0.6), col = "gray", linetype = "dashed") +
+  geom_hline(yintercept = -log10(0.05), col = "gray", linetype = "dashed") +
+  geom_point(size = 1) +
+  theme_set(theme_classic() +
+              theme(
+                axis.title.y = element_text(face = "bold", margin = margin(0,20,0,0), size = rel(1.1), color = 'black'),
+                axis.title.x = element_text(hjust = 0.5, face = "bold", margin = margin(20,0,0,0), size = rel(1.1), color = 'black'),
+                plot.title = element_text(hjust = 0.5)
+            )) +
+  coord_cartesian(ylim = c(0, 5), xlim = c(-10, 10)) + 
+  labs(color = "Male v female antenna",
+#       x = expression("log"[2]*"FC"), y = expression("-log"[10]*"p-value")) + # for ggplot
+        x = "log<sub>2</sub>FC", y = "-log<sub>10</sub>p-value") + #for plotly
+  scale_x_continuous(breaks = seq(-10, 10, 2)) +
+  scale_color_manual(values = c("#F28E2B", "#989ca3", "#4E79A7"),
+                     labels = c("Upregulated", "Not significant", "Downregulated")) #why doesn't this work?
+
+my.mant_v_fant.plot.circles <- my.mant_v_fant.plot +
+  geom_point(data = my.DE.OR.data.df.expanded, mapping = aes(x=Estimate_mant_v_fant, y=-log10(p_val_adj_mant_v_fant), fill = Direction_mant_v_fant, text = PpyrOR), color = "black", size = 1.2, shape = 21) +
+  scale_fill_manual(values =  c("#F28E2B", "#989ca3", "#4E79A7")) +
+  guides(fill = "none")
+
+ggplotly(my.mant_v_fant.plot.circles)
+```
+
+Circle with bold outline = ORs that passed filtering
+
+---------
+  
+##### DE **gene** list
+```{r top 25 DE genes mant v fant}
+mant_v_fant_DE_genes <- my.DE.data.df.expanded %>%
+  filter(p_val_adj_mant_v_fant < 0.05) %>%
+  arrange(desc(Estimate_mant_v_fant), p_val_adj_mant_v_fant) %>%
+  select(name, Estimate_mant_v_mleg, p_val_adj_mant_v_mleg, Estimate_fant_v_fleg, p_val_adj_fant_v_fleg, Estimate_mant_v_fant, p_val_adj_mant_v_fant, Estimate_mleg_v_fleg, p_val_adj_mleg_v_fleg)
+
+mant_v_fant_DE_genes.top25 <- mant_v_fant_DE_genes %>%
+  slice_head(n = 25)
+
+mant_v_fant_DE_genes.top25 |>
+  gt() |>
+  tab_spanner(label = "Male tissue AvL", columns = ends_with("mant_v_mleg")) |>
+  tab_spanner(label = "Female tissue AvL", columns = ends_with("fant_v_fleg")) |>
+  tab_spanner(label = "Antenna MvF", columns = ends_with("mant_v_fant")) |>
+  tab_spanner(label = "Leg MvF", columns = ends_with("mleg_v_fleg")) |>
+  cols_label(name = "Gene",
+             Estimate_mant_v_mleg = "log2FC", 
+             p_val_adj_mant_v_mleg = "p",
+             Estimate_fant_v_fleg = "log2FC",
+             p_val_adj_fant_v_fleg = "p",
+             Estimate_mant_v_fant = "log2FC",
+             p_val_adj_mant_v_fant = "p",
+             Estimate_mleg_v_fleg = "log2FC",
+             p_val_adj_mleg_v_fleg = "p") |>
+  fmt_number(decimals = 2) |>
+  tab_style(style = cell_fill(color = "#D4D4D4"),
+            locations = cells_body(columns = ends_with("mant_v_mleg"))) |>
+   tab_style(style = cell_fill(color = "#D4D4D4"),
+            locations = cells_body(columns = ends_with("mant_v_fant"))) |> 
+  tab_style(style = cell_text(weight = "bold"), 
+            locations = list(cells_column_labels(), cells_column_spanners(spanners =  c("Male tissue AvL", "Female tissue AvL", "Antenna MvF", "Leg MvF"))))
+```
+
+---------
+  
+##### DE **OR** list
+
+```{r num DE ORs mant_v_fant}
+mant_v_fant_DE_ORs <- my.DE.OR.data.df.expanded %>%
+  filter(DE_mant_v_fant == "Significant") %>%
+  arrange(desc(Estimate_mant_v_fant), p_val_adj_mant_v_fant) %>%
+  select(PpyrOR, Estimate_mant_v_mleg, p_val_adj_mant_v_mleg, Estimate_fant_v_fleg, p_val_adj_fant_v_fleg, Estimate_mant_v_fant, p_val_adj_mant_v_fant, Estimate_mleg_v_fleg, p_val_adj_mleg_v_fleg)
+
+mant_v_fant_DE_ORs |>
+  gt() |>
+  tab_spanner(label = "Male tissue AvL", columns = ends_with("mant_v_mleg")) |>
+  tab_spanner(label = "Female tissue AvL", columns = ends_with("fant_v_fleg")) |>
+  tab_spanner(label = "Antenna MvF", columns = ends_with("mant_v_fant")) |>
+  tab_spanner(label = "Leg MvF", columns = ends_with("mleg_v_fleg")) |>
+  cols_label(PpyrOR = "OR",
+             Estimate_mant_v_mleg = "log2FC", 
+             p_val_adj_mant_v_mleg = "p",
+             Estimate_fant_v_fleg = "log2FC",
+             p_val_adj_fant_v_fleg = "p",
+             Estimate_mant_v_fant = "log2FC",
+             p_val_adj_mant_v_fant = "p",
+             Estimate_mleg_v_fleg = "log2FC",
+             p_val_adj_mleg_v_fleg = "p") |>
+  fmt_number(decimals = 2) |>
+  tab_style(style = cell_fill(color = "#D4D4D4"),
+            locations = cells_body(columns = ends_with("mant_v_mleg"))) |>
+   tab_style(style = cell_fill(color = "#D4D4D4"),
+            locations = cells_body(columns = ends_with("mant_v_fant"))) |> 
+  tab_style(style = cell_text(weight = "bold"), 
+            locations = list(cells_column_labels(), cells_column_spanners(spanners =  c("Male tissue AvL", "Female tissue AvL", "Antenna MvF", "Leg MvF"))))
+```
+
+---------
+
+### Leg: M v F
+
+#### How many genes DE in male leg vs female leg? {.tabset}
+  
+```{r num DE genes mleg_v_fleg}
+leg_DE <- my.DE.data.df.expanded %>%
+  filter(DE_mleg_v_fleg == "Significant")
+
+mleg_v_fleg_DE_ORs <- my.DE.OR.data.df.expanded %>%
+  filter(DE_mleg_v_fleg == "Significant") %>%
+  arrange(desc(Estimate_mleg_v_fleg), p_val_adj_mleg_v_fleg) %>%
+  select(PpyrOR, Estimate_mant_v_mleg, p_val_adj_mant_v_mleg, Estimate_fant_v_fleg, p_val_adj_fant_v_fleg, Estimate_mant_v_fant, p_val_adj_mant_v_fant, Estimate_mleg_v_fleg, p_val_adj_mleg_v_fleg)
+```
+
+  + `r nrow(leg_DE) #10` genes are significantly differentially expressed between male and female legs
+  + `r nrow(mleg_v_fleg_DE_ORs) #0` ORs, out of 45 that passed the filter, (`r round((nrow(mleg_v_fleg_DE_ORs)/45)*100, 2)`)% are DE between male and female legs.
+
+##### Which genes are they?
+```{r mleg v fleg volcano, warning = FALSE}
+#for ggplot
+my.mleg_v_fleg.plot.volcano <- ggplot(my.DE.data.df.expanded, aes(x = Estimate_mleg_v_fleg, y = -log10(p_val_adj_mleg_v_fleg), color = Direction_mleg_v_fleg)) +
+#  geom_vline(xintercept = c(-0.6, 0.6), col = "gray", linetype = "dashed") +
+  geom_hline(yintercept = -log10(0.05), col = "gray", linetype = "dashed") +
+  geom_point(size = 1) +
+  theme_set(theme_classic() +
+              theme(
+                axis.title.y = element_text(face = "bold", margin = margin(0,20,0,0), size = rel(1.1), color = 'black'),
+                axis.title.x = element_text(hjust = 0.5, face = "bold", margin = margin(20,0,0,0), size = rel(1.1), color = 'black'),
+                plot.title = element_text(hjust = 0.5)
+            )) +
+  coord_cartesian(ylim = c(0, 5), xlim = c(-9, 9)) + 
+  labs(color = "Male v female leg",
+       x = expression("log"[2]*"FC"), y = expression("-log"[10]*"p-value")) + # for ggplot
+  scale_x_continuous(breaks = seq(-10, 10, 2)) +
+  scale_color_manual(values = c("#F28E2B", "#989ca3", "#4E79A7"),
+                     labels = c("Upregulated", "Not significant", "Downregulated"))
+
+#add circles, label ORco and OR6
+my.mleg_v_fleg.plot.volcano.labels <- my.mleg_v_fleg.plot.volcano +
+  geom_point(data = my.DE.OR.data.df.expanded, mapping = aes(x=Estimate_mleg_v_fleg, y=-log10(p_val_adj_mleg_v_fleg), fill = Direction_mleg_v_fleg), color = "black", size = 1.2, shape = 21) +
+  scale_fill_manual(values =  c("#989ca3", "#4E79A7", "#F28E2B")) +
+  guides(fill = "none") +
+  theme(legend.position = "none") +
+  geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "Ppyr/Orco"), label = "Orco", color = "black", size = 3, hjust = -2.2, vjust = 0.2) +
+  geom_segment(data = my.DE.OR.data.df.expanded %>% filter(PpyrOR == "Ppyr/Orco"), aes(x = Estimate_mleg_v_fleg, y = -log10(p_val_adj_mleg_v_fleg), xend = Estimate_mleg_v_fleg + 3.3, yend = -log10(p_val_adj_mleg_v_fleg) + 0.03), color = "grey28")+
+    force_panelsizes(rows = unit(85, "mm"),
+                   cols = unit(85, "mm"))
+
+my.mleg_v_fleg.plot.volcano.labels
+
+#for plotly
+my.mleg_v_fleg.plot <- ggplot(my.DE.data.df.expanded, aes(x = Estimate_mleg_v_fleg, y = -log10(p_val_adj_mleg_v_fleg), color = Direction_mleg_v_fleg, text = name)) +
+  geom_vline(xintercept = c(-0.6, 0.6), col = "gray", linetype = "dashed") +
+  geom_hline(yintercept = -log10(0.05), col = "gray", linetype = "dashed") +
+  geom_point(size = 1) +
+  theme_set(theme_classic() +
+              theme(
+                axis.title.y = element_text(face = "bold", margin = margin(0,20,0,0), size = rel(1.1), color = 'black'),
+                axis.title.x = element_text(hjust = 0.5, face = "bold", margin = margin(20,0,0,0), size = rel(1.1), color = 'black'),
+                plot.title = element_text(hjust = 0.5)
+            )) +
+  coord_cartesian(ylim = c(0, 5), xlim = c(-10, 10)) + 
+  labs(color = "Male v female leg",
+#       x = expression("log"[2]*"FC"), y = expression("-log"[10]*"p-value")) + # for ggplot
+        x = "log<sub>2</sub>FC", y = "-log<sub>10</sub>p-value") + #for plotly
+  scale_x_continuous(breaks = seq(-10, 10, 2)) +
+  scale_color_manual(values = c("#F28E2B", "#989ca3", "#4E79A7"),
+                     labels = c("Upregulated", "Not significant", "Downregulated")) #why doesn't this work?
+
+my.mleg_v_fleg.plot.circles <- my.mleg_v_fleg.plot +
+  geom_point(data = my.DE.OR.data.df.expanded, mapping = aes(x=Estimate_mleg_v_fleg, y=-log10(p_val_adj_mleg_v_fleg), fill = Direction_mleg_v_fleg, text = PpyrOR), color = "black", size = 1.2, shape = 21) +
+  scale_fill_manual(values =  c("#989ca3", "#4E79A7", "#F28E2B")) +
+  guides(fill = "none")
+
+ggplotly(my.mleg_v_fleg.plot.circles)
+```
+
+---------
+
+##### DE **gene** list
+```{r top 25 DE genes mleg_v_fleg}
+mleg_v_fleg_DE_genes <- my.DE.data.df.expanded %>%
+  filter(p_val_adj_mleg_v_fleg < 0.05) %>%
+  arrange(desc(Estimate_mleg_v_fleg), p_val_adj_mleg_v_fleg) %>%
+  select(name, Estimate_mant_v_mleg, p_val_adj_mant_v_mleg, Estimate_fant_v_fleg, p_val_adj_fant_v_fleg, Estimate_mant_v_fant, p_val_adj_mant_v_fant, Estimate_mleg_v_fleg, p_val_adj_mleg_v_fleg)
+
+mleg_v_fleg_DE_genes.top25 <- mleg_v_fleg_DE_genes %>%
+  slice_head(n = 25)
+
+mleg_v_fleg_DE_genes.top25 |>
+  gt() |>
+  tab_spanner(label = "Male tissue AvL", columns = ends_with("mant_v_mleg")) |>
+  tab_spanner(label = "Female tissue AvL", columns = ends_with("fant_v_fleg")) |>
+  tab_spanner(label = "Antenna MvF", columns = ends_with("mant_v_fant")) |>
+  tab_spanner(label = "Leg MvF", columns = ends_with("mleg_v_fleg")) |>
+  cols_label(name = "Gene",
+             Estimate_mant_v_mleg = "log2FC", 
+             p_val_adj_mant_v_mleg = "p",
+             Estimate_fant_v_fleg = "log2FC",
+             p_val_adj_fant_v_fleg = "p",
+             Estimate_mant_v_fant = "log2FC",
+             p_val_adj_mant_v_fant = "p",
+             Estimate_mleg_v_fleg = "log2FC",
+             p_val_adj_mleg_v_fleg = "p") |>
+  fmt_number(decimals = 2) |>
+  tab_style(style = cell_fill(color = "#D4D4D4"),
+            locations = cells_body(columns = ends_with("mant_v_mleg"))) |>
+   tab_style(style = cell_fill(color = "#D4D4D4"),
+            locations = cells_body(columns = ends_with("mant_v_fant"))) |> 
+  tab_style(style = cell_text(weight = "bold"), 
+            locations = list(cells_column_labels(), cells_column_spanners(spanners =  c("Male tissue AvL", "Female tissue AvL", "Antenna MvF", "Leg MvF"))))
+```
+
+---------
+
+##### DE **OR** list
+
+```{r num DE ORs mleg_v_fleg}
+mleg_v_fleg_DE_ORs |>
+  gt() |>
+  tab_spanner(label = "Male tissue AvL", columns = ends_with("mant_v_mleg")) |>
+  tab_spanner(label = "Female tissue AvL", columns = ends_with("fant_v_fleg")) |>
+  tab_spanner(label = "Antenna MvF", columns = ends_with("mant_v_fant")) |>
+  tab_spanner(label = "Leg MvF", columns = ends_with("mleg_v_fleg")) |>
+  cols_label(PpyrOR = "OR",
+             Estimate_mant_v_mleg = "log2FC", 
+             p_val_adj_mant_v_mleg = "p",
+             Estimate_fant_v_fleg = "log2FC",
+             p_val_adj_fant_v_fleg = "p",
+             Estimate_mant_v_fant = "log2FC",
+             p_val_adj_mant_v_fant = "p",
+             Estimate_mleg_v_fleg = "log2FC",
+             p_val_adj_mleg_v_fleg = "p") |>
+  fmt_number(decimals = 2) |>
+  tab_style(style = cell_fill(color = "#D4D4D4"),
+            locations = cells_body(columns = ends_with("mant_v_mleg"))) |>
+   tab_style(style = cell_fill(color = "#D4D4D4"),
+            locations = cells_body(columns = ends_with("mant_v_fant"))) |> 
+  tab_style(style = cell_text(weight = "bold"), 
+            locations = list(cells_column_labels(), cells_column_spanners(spanners =  c("Male tissue AvL", "Female tissue AvL", "Antenna MvF", "Leg MvF"))))
+```
+
+---------
+
+## Are upregulated ORs shared or unique? {.tabset}
+
+```{r lists shared}
+x = list(mant_v_mleg_DE_ORs$PpyrOR, fant_v_fleg_DE_ORs$PpyrOR, mant_v_fant_DE_ORs$PpyrOR, mleg_v_fleg_DE_ORs$PpyrOR)
+
+ggVennDiagram(x, category.names = c("Antenna v leg, M", "Antenna v leg, F", "Antenna, M v F", "Leg, M v F")) +
+  ggplot2::scale_fill_gradient(low  = "#A0CBE8", high = "#4E79A7") + scale_x_continuous(expand = expansion(mult = .2))
+```
+
+### Antenna-upregulated ORs shared between males and females
+```{r DE ORs shared}
+up_ant_in_both <- intersect(mant_v_mleg_DE_ORs$PpyrOR, fant_v_fleg_DE_ORs$PpyrOR) #shared
+sort(up_ant_in_both)
+```
+
+### Antenna-upregulated ORs unique to males
+```{r DE ORs unique to males}
+up_ant_in_males <- setdiff(mant_v_mleg_DE_ORs$PpyrOR, fant_v_fleg_DE_ORs$PpyrOR) #male unique
+sort(up_ant_in_males)
+```
+
+### Antenna-upregulated ORs unique to females
+```{r DE ORs unique to females}
+up_ant_in_females <- setdiff(fant_v_fleg_DE_ORs$PpyrOR, mant_v_mleg_DE_ORs$PpyrOR) #female unique
+sort(up_ant_in_females)
+```
+
+### Which ORs that are expressed aren't DE?
+```{r not DE ORs}
+not.in.males <- setdiff(my.DE.OR.data.df.expanded$PpyrOR, mant_v_mleg_DE_ORs$PpyrOR)
+not.in.females <- setdiff(my.DE.OR.data.df.expanded$PpyrOR, fant_v_fleg_DE_ORs$PpyrOR)
+
+try2<-my.DE.OR.data.df.expanded[which(my.DE.OR.data.df.expanded$PpyrOR %in% intersect(not.in.males, not.in.females)), ]
+
+try2.long <- try2 %>% pivot_longer(cols = starts_with("SEL"),
+                                names_to = "Sample",
+                                values_to = "Expression") 
+
+try2.longer <- try2.long %>% mutate(Sex = case_when(Sample == "SEL534ant" ~ "M",
+                                                                      Sample == "SEL534BL" ~ "M",
+                                                                      Sample == "SEL535ant" ~ "M",
+                                                                      Sample == "SEL535BL" ~ "M",
+                                                                      Sample == "SEL536ant" ~ "M",
+                                                                      Sample == "SEL536BL" ~ "M",
+                                                                      Sample == "SEL543ant" ~ "M",
+                                                                      Sample == "SEL543BL" ~ "M",
+                                                                      Sample == "SEL562ant" ~ "F",
+                                                                      Sample == "SEL562BL" ~ "F",
+                                                                      Sample == "SEL627ant" ~ "F",
+                                                                      Sample == "SEL627BL" ~ "F",
+                                                                      Sample == "SEL672ant" ~ "F",
+                                                                      Sample == "SEL672BL" ~ "F",
+                                                                      TRUE ~ "not yet"))
+
+try2.longer$Sex <- factor(try2.longer$Sex, levels = c("M", "F"))
+
+#add tissue column
+try2.longer <- try2.longer %>% mutate(Tissue = case_when(Sample == "SEL534ant" ~ "antenna",
+                                                                      Sample == "SEL534BL" ~ "leg",
+                                                                      Sample == "SEL535ant" ~ "antenna",
+                                                                      Sample == "SEL535BL" ~ "leg",
+                                                                      Sample == "SEL536ant" ~ "antenna",
+                                                                      Sample == "SEL536BL" ~ "leg",
+                                                                      Sample == "SEL543ant" ~ "antenna",
+                                                                      Sample == "SEL543BL" ~ "leg",
+                                                                      Sample == "SEL562ant" ~ "antenna",
+                                                                      Sample == "SEL562BL" ~ "leg",
+                                                                      Sample == "SEL627ant" ~ "antenna",
+                                                                      Sample == "SEL627BL" ~ "leg",
+                                                                      Sample == "SEL672ant" ~ "antenna",
+                                                                      Sample == "SEL672BL" ~ "leg",
+                                                                      TRUE ~ "not yet"))
+
+#all.DE.ORs.idx.long$Tissue<- factor(all.DE.ORs.idx.long$Tissue, levels = c("antenna", "leg"))
+
+#make sex*tissue column
+try2.longer <- try2.longer %>% mutate(Treatment = paste(Sex, Tissue, sep = " "))
+
+try2.longer$Treatment<- factor(try2.longer$Treatment, levels = c("M antenna", "F antenna", "M leg", "F leg"))
+
+ggplot(try2.longer, aes(x = interaction(Sex, Tissue), y = Expression)) +
+  geom_boxplot(aes(color = Sex), outlier.shape = NA) + #outlier.size = 0.5
+  geom_jitter(size = 0.5, color = "black") +
+  facet_wrap2(~ PpyrOR, ncol = 2, scales = "free_y") + #strip = strip
+  guides(x = "axis_nested") +
+#  scale_fill_manual(values = c("#4E79A7", "#F28E2B")) + #colors: "#F28E2B", "#989ca3", "#4E79A7" ; grayscale:"#636363", "#f0f0f0"
+  scale_color_manual(values = c("#4E79A7", "#F28E2B")) + #colors: "#F28E2B", "#989ca3", "#4E79A7" ; grayscale:"#636363", "#f0f0f0"
+#  ylim(c(8,14.8)) +
+  ylab("Normalized counts") +
+  xlab("Sample") +
+  guides(color = "none")
+```
+
+  + It seems like these genes have higher variance than others in the analysis.
+  
+## {-}
+
+  + Conclusions:
+    + Many ORs are upregulated in antennae in both males (32) and females (36)
+    + **PpyrOR6** is a top candidate for being involved in male-specific behavior (upregulated in antennae of both sexes, and upregulated in male antennae compared to females)
+    + **PpyrOR99** and **PpyrOR66** are also upregulated in male antennae vs. leg, but not females (and not sig. DE between sexes in antennae)
+    + **PpyrOR15**, **PpyrOR23**, **PpyrOR27**, **PpyrOR58PSE**, **PpyrOR63**, **PpyrOR80** are upregulated in female antennae vs leg, but not males (and not sig. DE between sexes in antennae)
+
+## Testing model adequacy for DE ORs     
+
+```{r testing model adequacy for DE ORs, message = FALSE, cache = TRUE}
+# First, index the rows of the dataframe so that each gene has an index#
+my.DE.data.df.expanded.idx <- my.DE.data.df.expanded %>%
+  mutate(index = 1:13338)
+
+nrow(my.DE.data.df.expanded.idx)
+
+#then extract the DE ORs
+all.DE.ORs.idx <- my.DE.data.df.expanded.idx %>%
+  filter(!is.na(PpyrOR)) %>%
+  filter(DE_mant_v_mleg == "Significant" | DE_fant_v_fleg == "Significant" | DE_mant_v_fant == "Significant" | DE_mleg_v_fleg == "Significant")
+nrow(all.DE.ORs.idx) #38 total DE
+
+#then plot the fits
+
+for(i in all.DE.ORs.idx$index){
+  print(plot(res_reb@fits[[i]], main = my.DE.data.df.expanded.idx$PpyrOR[i]))
+}
+
+```
+
+## Plots
+
+### ORs are generally upregulated in antennae {.tabset}
+
+#### Distribution of DE estimates
+```{r DE estimate distribution, message = FALSE}
+
+my.DE.data.df.expanded.est.longer <- my.DE.data.df.expanded %>%
+  select(name, Estimate_mant_v_mleg, Estimate_fant_v_fleg, Estimate_mant_v_fant, Estimate_mleg_v_fleg, OR) %>%
+  pivot_longer(cols = starts_with("Estimate"), names_to = "Comparison", values_to = "Estimate")
+
+my.DE.data.df.expanded.est.longer$Comparison <- factor(my.DE.data.df.expanded.est.longer$Comparison, 
+                                                       levels = c("Estimate_mant_v_mleg", "Estimate_fant_v_fleg", "Estimate_mant_v_fant", "Estimate_mleg_v_fleg"), 
+                                                       labels = c("M:AvL", "F:AvL", "A:MvF", "L:MvF"))
+                          
+
+
+ggplot(my.DE.data.df.expanded.est.longer, aes(x=Estimate, fill = OR)) +
+  geom_histogram(alpha = 0.5, position = "identity") +
+  facet_grid(OR ~ Comparison, scales = "free_y") +
+  geom_vline(xintercept = 0, color = "gray", linetype = "dashed") +
+  guides(fill = "none")
+
+```
+
+  + Note that there are no negative values for ORs in Antenna v Leg comparisons -- the distribution is skewed right.
+  
+---------
+
+#### 1:1 plots of leg vs antenna by sex
+```{r 1:1, fig.width = 7, fig.height=9}
+male.tissue.1.2.1 <- ggplot(my.DE.data.df.expanded, aes(y=male.ant.AVG, x=male.leg.AVG, color = Direction_mant_v_mleg)) + 
+  geom_point(shape=19, size=1, alpha = 0.75) +
+  ggtitle("Male") +
+  ylab("Antenna normalized counts") +
+  xlab("Leg normalized counts") +
+  theme_bw() +
+  scale_color_manual(values = c("#F28E2B", "#989ca3", "#4E79A7"), labels = c("Antenna-biased", "Not significant", "Leg-biased")) +
+  geom_abline(slope=1, intercept = 0, linetype = "dashed", color="grey28") +
+  theme_classic() +
+  theme(legend.title = element_blank())
+
+male.tissue.1.2.1.labeled <- male.tissue.1.2.1 +
+  geom_point(data = my.DE.data.df.expanded %>% filter(!is.na(PpyrOR)), mapping = aes(y = male.ant.AVG, x = male.leg.AVG), shape = 21, color = "Black") +
+  geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "Ppyr/Orco"), label = "Orco", color = "black", size = 3, hjust = -0.2, vjust = 0.2) +
+  geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "PpyrOR6"), label = "OR6", color = "black", size = 3, hjust = -0.2, vjust = 0.2)
+
+
+female.tissue.1.2.1 <- ggplot(my.DE.data.df.expanded, aes(y=female.ant.AVG, x=female.leg.AVG, color = Direction_fant_v_fleg)) + 
+  geom_point(shape=19, size=1, alpha = 0.75) +
+  ggtitle("Female") +
+  ylab("Antenna normalized counts") +
+  xlab("Leg normalized counts") +
+  theme_bw() +
+  scale_color_manual(values = c("#F28E2B", "#989ca3", "#4E79A7"), labels = c("Antenna-biased", "Not significant", "Leg-biased")) +
+  geom_abline(slope=1, intercept = 0, linetype = "dashed", color="grey28") +
+  theme_classic() +
+  theme(legend.title = element_blank())
+
+female.tissue.1.2.1.labeled <- female.tissue.1.2.1 +
+  geom_point(data = my.DE.data.df.expanded %>% filter(!is.na(PpyrOR)), mapping = aes(y = female.ant.AVG, x = female.leg.AVG), shape = 21, color = "Black") +
+  geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "Ppyr/Orco"), label = "Orco", color = "black", size = 3, hjust = -0.2, vjust = 0.2)
+
+tissue.1.1.plots <- male.tissue.1.2.1.labeled / female.tissue.1.2.1.labeled +
+  plot_layout(guides = "collect", axis_titles = "collect") +
+  plot_annotation(tag_levels = 'A')
+
+tissue.1.1.plots
+#ggsave("2024_11_20_121_plot_tissue.png", plot = tissue.1.1.plots)
+```
+
+---------
+
+### PpyrOR6 is the only DE OR (one of two DE genes total) between male and female antennae
+
+#### 1:1 plot of male v female antennae (and legs)
+```{r 1:1 mant v fant, fig.width = 7, fig.height = 9}
+ant.mant_v_fant.1.2.1 <- ggplot(my.DE.data.df.expanded, aes(y=male.ant.AVG, x=female.ant.AVG, color = Direction_mant_v_fant)) + 
+  geom_point(shape=19, size=1, alpha = 0.75) +
+  ggtitle("Antenna") +
+  ylab("Male normalized counts") +
+  xlab("Female normalized counts") +
+  theme_bw() +
+  scale_color_manual(values = c("#F28E2B", "#989ca3", "#4E79A7"), labels = c("Male-biased", "Not significant", "Female-biased")) +
+  geom_abline(slope=1, intercept = 0, linetype = "dashed", color="grey28") +
+  theme_classic() +
+  theme(legend.title = element_blank(), legend.position = "none")
+
+ant.mant_v_fant.1.2.1.labeled <- ant.mant_v_fant.1.2.1 +
+  geom_point(data = my.DE.data.df.expanded %>% filter(!is.na(PpyrOR)), mapping = aes(y = male.ant.AVG, x = female.ant.AVG), shape = 21, color = "Black") +
+  geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "Ppyr/Orco"), label = "Orco", color = "black", size = 3, hjust = -0.2, vjust = 0.2) +
+  geom_text(data = my.DE.data.df.expanded %>% filter(PpyrOR == "PpyrOR6"), label = "OR6", color = "black", size = 3, hjust = -0.2, vjust = 0.2)
+
+leg.mleg_v_fleg.1.2.1 <- ggplot(my.DE.data.df.expanded, aes(y=male.leg.AVG, x=female.leg.AVG, color = Direction_mleg_v_fleg)) + 
+  geom_point(shape=19, size=1, alpha = 0.75) +
+  ggtitle("Leg") +
+  ylab("Male normalized counts") +
+  xlab("Female normalized counts") +
+  theme_bw() +
+  scale_color_manual(values = c("#F28E2B", "#989ca3", "#4E79A7"), labels = c("Male-biased", "Not significant", "Female-biased")) +
+  geom_abline(slope=1, intercept = 0, linetype = "dashed", color="grey28") +
+  theme_classic() +
+  theme(legend.title = element_blank())
+
+leg.mleg_v_fleg.1.2.1.labeled <- leg.mleg_v_fleg.1.2.1 +
+  geom_point(data = my.DE.data.df.expanded %>% filter(!is.na(PpyrOR)), mapping = aes(y = male.leg.AVG, x = female.leg.AVG), shape = 21, color = "Black")
+
+ant.mant_v_fant.1.2.1.labeled / leg.mleg_v_fleg.1.2.1.labeled +
+  plot_layout(guides = "collect", axis_titles = "collect") +
+  plot_annotation(tag_levels = 'A')
+```
+
+  + The dotted line shows the 1:1 line
+  
+### Volcano plots
+```{r volcanos together}
+
+volcanos.plot <- (my.mant_v_mleg.plot.volcano.labels + my.fant_v_fleg.plot.volcano.labels) / (my.mant_v_fant.plot.volcano.labels + my.mleg_v_fleg.plot.volcano.labels) +
+   plot_annotation(tag_levels = 'A') +
+  plot_layout(guides = "collect")
+
+volcanos.plot
+
+#ggsave("2025_02_24_volcanoes.svg", plot = volcanos.plot, device = "svg", width = 300, height = 300, dpi = 300, units = "mm")
+```
+
+### Plots of DE OR + Orco expression w/ p-values and sig bars/letters
+
+#### Boxplot
+```{r boxplot, warning = FALSE, fig.width = 8, fig.height = 14}
+all.DE.ORs.idx.long <- all.DE.ORs.idx %>% pivot_longer(cols = starts_with("SEL"),
+                                names_to = "Sample",
+                                values_to = "Expression")
+#length(unique(all.DE.ORs.idx.long$PpyrOR))
+
+#add sex column
+all.DE.ORs.idx.long <- all.DE.ORs.idx.long %>% mutate(Sex = case_when(Sample == "SEL534ant" ~ "M",
+                                                                      Sample == "SEL534BL" ~ "M",
+                                                                      Sample == "SEL535ant" ~ "M",
+                                                                      Sample == "SEL535BL" ~ "M",
+                                                                      Sample == "SEL536ant" ~ "M",
+                                                                      Sample == "SEL536BL" ~ "M",
+                                                                      Sample == "SEL543ant" ~ "M",
+                                                                      Sample == "SEL543BL" ~ "M",
+                                                                      Sample == "SEL562ant" ~ "F",
+                                                                      Sample == "SEL562BL" ~ "F",
+                                                                      Sample == "SEL627ant" ~ "F",
+                                                                      Sample == "SEL627BL" ~ "F",
+                                                                      Sample == "SEL672ant" ~ "F",
+                                                                      Sample == "SEL672BL" ~ "F",
+                                                                      TRUE ~ "not yet"))
+
+all.DE.ORs.idx.long$Sex <- factor(all.DE.ORs.idx.long$Sex, levels = c("M", "F"))
+
+#add tissue column
+all.DE.ORs.idx.long <- all.DE.ORs.idx.long %>% mutate(Tissue = case_when(Sample == "SEL534ant" ~ "antenna",
+                                                                      Sample == "SEL534BL" ~ "leg",
+                                                                      Sample == "SEL535ant" ~ "antenna",
+                                                                      Sample == "SEL535BL" ~ "leg",
+                                                                      Sample == "SEL536ant" ~ "antenna",
+                                                                      Sample == "SEL536BL" ~ "leg",
+                                                                      Sample == "SEL543ant" ~ "antenna",
+                                                                      Sample == "SEL543BL" ~ "leg",
+                                                                      Sample == "SEL562ant" ~ "antenna",
+                                                                      Sample == "SEL562BL" ~ "leg",
+                                                                      Sample == "SEL627ant" ~ "antenna",
+                                                                      Sample == "SEL627BL" ~ "leg",
+                                                                      Sample == "SEL672ant" ~ "antenna",
+                                                                      Sample == "SEL672BL" ~ "leg",
+                                                                      TRUE ~ "not yet"))
+
+all.DE.ORs.idx.long$Tissue<- factor(all.DE.ORs.idx.long$Tissue, levels = c("antenna", "leg"))
+
+#make sex*tissue column
+all.DE.ORs.idx.long <- all.DE.ORs.idx.long %>% mutate(Treatment = paste(Sex, Tissue, sep = " "))
+
+all.DE.ORs.idx.long$Treatment<- factor(all.DE.ORs.idx.long$Treatment, levels = c("M antenna", "F antenna", "M leg", "F leg"))
+
+#make boxplots
+df <- all.DE.ORs.idx.long
+
+df$PpyrOR <- factor(df$PpyrOR, levels = c("Ppyr/Orco", "PpyrOR6", "PpyrOR11", "PpyrOR12", "PpyrOR15", "PpyrOR16", "PpyrOR18", "PpyrOR22", "PpyrOR23", "PpyrOR24", "PpyrOR27",  "PpyrOR37", "PpyrOR40", "PpyrOR52", "PpyrOR55PSE", "PpyrOR57", "PpyrOR58PSE", "PpyrOR60", "PpyrOR61", "PpyrOR62", "PpyrOR63", "PpyrOR64", "PpyrOR65", "PpyrOR66", "PpyrOR67", "PpyrOR68", "PpyrOR69", "PpyrOR70", "PpyrOR74", "PpyrOR75", "PpyrOR76", "PpyrOR80", "PpyrOR87", "PpyrOR91", "PpyrOR92", "PpyrOR97", "PpyrOR98", "PpyrOR99"))
+
+df$facet <- df$PpyrOR
+
+#trueplots <- c("PpyrOR6")
+
+### In both males AND females
+##  [1] "Ppyr/Orco"   "PpyrOR11"    "PpyrOR12"    "PpyrOR16"    "PpyrOR18"   
+##  [6] "PpyrOR22"    "PpyrOR24"    "PpyrOR37"    "PpyrOR40"    "PpyrOR52"   
+## [11] "PpyrOR55PSE" "PpyrOR57"    "PpyrOR6"     "PpyrOR60"    "PpyrOR61"   
+## [16] "PpyrOR62"    "PpyrOR64"    "PpyrOR65"    "PpyrOR67"    "PpyrOR68"   
+## [21] "PpyrOR69"    "PpyrOR70"    "PpyrOR74"    "PpyrOR75"    "PpyrOR76"   
+## [26] "PpyrOR87"    "PpyrOR91"    "PpyrOR92"    "PpyrOR97"    "PpyrOR98"
+
+#males only
+## [1] "PpyrOR66" "PpyrOR99"
+
+#females only
+## [1] "PpyrOR15"    "PpyrOR23"    "PpyrOR27"    "PpyrOR58PSE" "PpyrOR63"   
+## [6] "PpyrOR80"
+
+
+
+rectangle_fill_sig_both <- "#bdbdbd"
+rectangle_fill_sig_male_only <- "#636363"
+rectangle_fill_sig_female_only <- "#f0f0f0"
+
+strip <- strip_themed(background_x = elem_list_rect(fill = c(rectangle_fill_sig_both,  #1, Orco           *
+                                                             rectangle_fill_sig_both, #2, Or6             *
+                                                             rectangle_fill_sig_both,  #3, Or11           *
+                                                             rectangle_fill_sig_both, #4, Or12            *
+                                                             rectangle_fill_sig_female_only, #5 , Or15    *
+                                                             rectangle_fill_sig_both, #6, OR16            *
+                                                             rectangle_fill_sig_both,  #7, OR18           *
+                                                             rectangle_fill_sig_both, #8, OR22            *
+                                                             rectangle_fill_sig_female_only,  #9, OR23    *
+                                                             rectangle_fill_sig_both, #10, OR24           *
+                                                             rectangle_fill_sig_female_only, #11, OR27    *
+                                                             rectangle_fill_sig_both,#12, OR37            *
+                                                             rectangle_fill_sig_both, # OR40              *
+                                                             rectangle_fill_sig_both,#14, OR52            *
+                                                             rectangle_fill_sig_female_only, # OR55PSE
+                                                             rectangle_fill_sig_both,#16, OR57
+                                                             rectangle_fill_sig_both, #, OR58 
+                                                             rectangle_fill_sig_both,#18, OR60
+                                                             rectangle_fill_sig_both, # 61
+                                                             rectangle_fill_sig_both,#20, 62 
+                                                             rectangle_fill_sig_female_only, #, OR63
+                                                             rectangle_fill_sig_both,#22, OR64
+                                                             rectangle_fill_sig_both, #, OR65
+                                                             rectangle_fill_sig_male_only,#24, OR66
+                                                             rectangle_fill_sig_both, #, OR67
+                                                             rectangle_fill_sig_both,#26, OR68
+                                                             rectangle_fill_sig_both, # 69
+                                                             rectangle_fill_sig_both,#28, 70
+                                                             rectangle_fill_sig_both, # OR74
+                                                             rectangle_fill_sig_both,#30, 75
+                                                             rectangle_fill_sig_both, #, OR76
+                                                             rectangle_fill_sig_female_only, #32, OR80
+                                                             rectangle_fill_sig_both, #, OR87
+                                                             rectangle_fill_sig_both,#34, 91
+                                                             rectangle_fill_sig_both, #, 92
+                                                             rectangle_fill_sig_both, #36, 97
+                                                             rectangle_fill_sig_both,  #98
+                                                             rectangle_fill_sig_male_only), #38, 99
+                                                    color = c(rep("black", 38)), 
+                                                    linewidth = c(1, 2, rep(1,36))), 
+                      text_x = elem_list_text(color = c(rep("black", 23), "white", rep("black", 13), "white")))
+```
+
+```{r defining annotations - free y}
+#free scales
+anno.free.Orco <- data.frame(x1 = c(1, 2), #done
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.4), 
+                   y2 = c(14.5, 13.7), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.8), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("Ppyr/Orco", "Ppyr/Orco"))
+
+
+anno.free.OR6 <- data.frame(x1 = c(1, 1, 2), #done
+                   x2 = c(3, 2, 4), 
+                   y1 = c(13, 12.5, 12.0), 
+                   y2 = c(13.3, 12.8, 12.3), 
+                   xstar = c(2, 1.5, 3), 
+                   ystar = c(13.4, 12.9, 12.4), 
+                   lab = c("*", "*", "*"),
+                   PpyrOR = c("PpyrOR6", "PpyrOR6", "PpyrOR6"))
+
+anno.free.OR11 <- data.frame(x1 = c(1, 2), #done
+                   x2 = c(3, 4), 
+                   y1 = c(10.15, 9.9), 
+                   y2 = c(10.25, 10.0), 
+                   xstar = c(2, 3), 
+                   ystar = c(10.3, 10.05), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR11", "PpyrOR11"))
+
+anno.free.OR12 <- data.frame(x1 = c(1, 2), #done
+                   x2 = c(3, 4), 
+                   y1 = c(9.26, 9.15), 
+                   y2 = c(9.3, 9.2), 
+                   xstar = c(2, 3), 
+                   ystar = c(9.31, 9.22), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR12", "PpyrOR12"))
+
+anno.free.OR15 <- data.frame(x1 = c(2), #done, female only
+                   x2 = c(4), 
+                   y1 = c(9.6), 
+                   y2 = c(9.65), 
+                   xstar = c(3), 
+                   ystar = c(9.67), 
+                   lab = c("*"),
+                   PpyrOR = c("PpyrOR15"))
+
+anno.free.OR16 <- data.frame(x1 = c(1, 2), #done
+                   x2 = c(3, 4), 
+                   y1 = c(9.72, 9.6), 
+                   y2 = c(9.77, 9.65), 
+                   xstar = c(2, 3), 
+                   ystar = c(9.79, 9.67), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR16", "PpyrOR16"))
+
+anno.free.OR18 <- data.frame(x1 = c(1, 2), #done
+                   x2 = c(3, 4), 
+                   y1 = c(10.3, 10.1), 
+                   y2 = c(10.4, 10.2), 
+                   xstar = c(2, 3), 
+                   ystar = c(10.45, 10.22), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR18", "PpyrOR18"))
+
+anno.free.OR22 <- data.frame(x1 = c(1, 2), #done
+                   x2 = c(3, 4), 
+                   y1 = c(9.3, 9.1), 
+                   y2 = c(9.4, 9.2), 
+                   xstar = c(2, 3), 
+                   ystar = c(9.45, 9.22), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR22", "PpyrOR22"))
+
+anno.free.OR23 <- data.frame(x1 = c(2), #done, female only
+                   x2 = c(4), 
+                   y1 = c(10.4), 
+                   y2 = c(10.5), 
+                   xstar = c(3), 
+                   ystar = c(10.6), 
+                   lab = c("*"),
+                   PpyrOR = c("PpyrOR23"))
+
+anno.free.OR24 <- data.frame(x1 = c(1, 2), #done
+                   x2 = c(3, 4), 
+                   y1 = c(10, 9.75), 
+                   y2 = c(10.1, 9.85), 
+                   xstar = c(2, 3), 
+                   ystar = c(10.15, 9.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR24", "PpyrOR24"))
+
+anno.free.OR27 <- data.frame(x1 = c(2), #done, female only
+                   x2 = c(4), 
+                   y1 = c(10.1), 
+                   y2 = c(10.18), 
+                   xstar = c(3), 
+                   ystar = c(10.2), 
+                   lab = c("*"),
+                   PpyrOR = c("PpyrOR27"))
+
+anno.free.OR37 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(9.3, 9.1), 
+                   y2 = c(9.4, 9.2), 
+                   xstar = c(2, 3), 
+                   ystar = c(9.45, 9.22), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR37", "PpyrOR37"))
+
+anno.free.OR40 <- data.frame(x1 = c(1, 2), #done
+                   x2 = c(3, 4), 
+                   y1 = c(9.6, 9.4), 
+                   y2 = c(9.7, 9.5), 
+                   xstar = c(2, 3), 
+                   ystar = c(9.75, 9.53), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR40", "PpyrOR40"))
+
+anno.free.OR52 <- data.frame(x1 = c(1, 2), #done
+                   x2 = c(3, 4), 
+                   y1 = c(9.6, 9.4), 
+                   y2 = c(9.7, 9.5), 
+                   xstar = c(2, 3), 
+                   ystar = c(9.75, 9.53), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR52", "PpyrOR52"))
+
+anno.free.OR55 <- data.frame(x1 = c(2), #done, female only
+                   x2 = c(4), 
+                   y1 = c(9.2), 
+                   y2 = c(9.25), 
+                   xstar = c(3), 
+                   ystar = c(9.28), 
+                   lab = c("*"),
+                   PpyrOR = c("PpyrOR55PSE"))
+
+anno.free.OR57 <- data.frame(x1 = c(1, 2), #done
+                   x2 = c(3, 4), 
+                   y1 = c(9.4, 9.25), 
+                   y2 = c(9.45, 9.3), 
+                   xstar = c(2, 3), 
+                   ystar = c(9.48, 9.33), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR57", "PpyrOR57"))
+
+anno.free.OR58 <- data.frame(x1 = c(1, 2), #done
+                   x2 = c(3, 4), 
+                   y1 = c(9.1, 9), 
+                   y2 = c(9.15, 9.05), 
+                   xstar = c(2, 3), 
+                   ystar = c(9.165, 9.065), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR58PSE", "PpyrOR58PSE"))
+
+anno.free.OR60 <- data.frame(x1 = c(1, 2), #done
+                   x2 = c(3, 4), 
+                   y1 = c(9, 8.9), 
+                   y2 = c(9.05, 8.95), 
+                   xstar = c(2, 3), 
+                   ystar = c(9.065, 8.965), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR60", "PpyrOR60"))
+
+anno.free.OR61 <- data.frame(x1 = c(1, 2), #done
+                   x2 = c(3, 4), 
+                   y1 = c(9.6, 9.4), 
+                   y2 = c(9.7, 9.5), 
+                   xstar = c(2, 3), 
+                   ystar = c(9.735, 9.535), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR61", "PpyrOR61"))
+
+anno.free.OR62 <- data.frame(x1 = c(1, 2), #done
+                   x2 = c(3, 4), 
+                   y1 = c(9.6, 9.45), 
+                   y2 = c(9.65, 9.5), 
+                   xstar = c(2, 3), 
+                   ystar = c(9.7, 9.535), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR62", "PpyrOR62"))
+
+anno.free.OR63 <- data.frame(x1 = c(2), #done, female only
+                   x2 = c(4), 
+                   y1 = c(9.25), 
+                   y2 = c(9.3), 
+                   xstar = c(3), 
+                   ystar = c(9.335), 
+                   lab = c("*"),
+                   PpyrOR = c("PpyrOR63"))
+
+anno.free.OR64 <- data.frame(x1 = c(1, 2), #done
+                   x2 = c(3, 4), 
+                   y1 = c(10.0, 9.8), 
+                   y2 = c(10.1, 9.9), 
+                   xstar = c(2, 3), 
+                   ystar = c(10.135, 9.935), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR64", "PpyrOR64"))
+
+anno.free.OR65 <- data.frame(x1 = c(1, 2), #done
+                   x2 = c(3, 4), 
+                   y1 = c(9.22, 9.1), 
+                   y2 = c(9.27, 9.15), 
+                   xstar = c(2, 3), 
+                   ystar = c(9.3, 9.18), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR65", "PpyrOR65"))
+
+anno.free.OR66 <-  data.frame(x1 = c(1), #done, male only
+                   x2 = c(3), 
+                   y1 = c(9.1), 
+                   y2 = c(9.15), 
+                   xstar = c(2), 
+                   ystar = c(9.165), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR66"))
+
+anno.free.OR67 <- data.frame(x1 = c(1, 2), #done
+                   x2 = c(3, 4), 
+                   y1 = c(9.3, 9.1), 
+                   y2 = c(9.4, 9.2), 
+                   xstar = c(2, 3), 
+                   ystar = c(9.45, 9.22), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR67", "PpyrOR67"))
+
+anno.free.OR68 <- data.frame(x1 = c(1, 2), #done
+                   x2 = c(3, 4), 
+                   y1 = c(9.8, 9.55), 
+                   y2 = c(9.9, 9.65), 
+                   xstar = c(2, 3), 
+                   ystar = c(9.95, 9.7), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR68", "PpyrOR68"))
+
+anno.free.OR69 <- data.frame(x1 = c(1, 2), #done
+                   x2 = c(3, 4), 
+                   y1 = c(10.1, 9.8), 
+                   y2 = c(10.2, 9.9), 
+                   xstar = c(2, 3), 
+                   ystar = c(10.25,9.95), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR69", "PpyrOR69"))
+
+anno.free.OR70 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(9.45, 9.3), 
+                   y2 = c(9.5, 9.35), 
+                   xstar = c(2, 3), 
+                   ystar = c(9.535, 9.385), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR70", "PpyrOR70"))
+
+anno.free.OR74 <- data.frame(x1 = c(1, 2), #done
+                   x2 = c(3, 4), 
+                   y1 = c(9.55, 9.4), 
+                   y2 = c(9.6, 9.45), 
+                   xstar = c(2, 3), 
+                   ystar = c(9.635, 9.485), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR74", "PpyrOR74"))
+
+anno.free.OR75 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(9.6, 9.4), 
+                   y2 = c(9.65, 9.45), 
+                   xstar = c(2, 3), 
+                   ystar = c(9.7, 9.5), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR75", "PpyrOR75"))
+
+anno.free.OR76 <- data.frame(x1 = c(1, 2), #done
+                   x2 = c(3, 4), 
+                   y1 = c(9.3, 9.1), 
+                   y2 = c(9.4, 9.2), 
+                   xstar = c(2, 3), 
+                   ystar = c(9.45, 9.22), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR76", "PpyrOR76"))
+
+anno.free.OR80 <- data.frame(x1 = c(2), #done, female only
+                   x2 = c(4), 
+                   y1 = c(9.5), 
+                   y2 = c(9.55), 
+                   xstar = c(3), 
+                   ystar = c(9.58), 
+                   lab = c("*"),
+                   PpyrOR = c("PpyrOR80"))
+
+anno.free.OR87 <- data.frame(x1 = c(1, 2), #done
+                   x2 = c(3, 4), 
+                   y1 = c(10.3, 10), 
+                   y2 = c(10.4, 10.1), 
+                   xstar = c(2, 3), 
+                   ystar = c(10.5, 10.2), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR87", "PpyrOR87"))
+
+anno.free.OR91 <- data.frame(x1 = c(1, 2), #done
+                   x2 = c(3, 4), 
+                   y1 = c(10.6, 10.3), 
+                   y2 = c(10.7, 10.4), 
+                   xstar = c(2, 3), 
+                   ystar = c(10.8, 10.5), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR91", "PpyrOR91"))
+
+anno.free.OR92 <- data.frame(x1 = c(1, 2), #done
+                   x2 = c(3, 4), 
+                   y1 = c(9.75, 9.6), 
+                   y2 = c(9.8, 9.65), 
+                   xstar = c(2, 3), 
+                   ystar = c(9.83, 9.68), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR92", "PpyrOR92"))
+
+anno.free.OR97 <- data.frame(x1 = c(1, 2), #done 
+                   x2 = c(3, 4), 
+                   y1 = c(9.75, 9.6), 
+                   y2 = c(9.8, 9.65), 
+                   xstar = c(2, 3), 
+                   ystar = c(9.83, 9.68), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR97", "PpyrOR97"))
+
+anno.free.OR98 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(10.1, 9.8), 
+                   y2 = c(10.2, 9.9), 
+                   xstar = c(2, 3), 
+                   ystar = c(10.3, 10.0), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR98", "PpyrOR98"))
+
+anno.free.OR99 <- data.frame(x1 = c(1), #done, male only
+                   x2 = c(3), 
+                   y1 = c(9.45), 
+                   y2 = c(9.5), 
+                   xstar = c(2), 
+                   ystar = c(9.535), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR99"))
+
+anno.free <- rbind(anno.free.Orco, anno.free.OR6, anno.free.OR11, anno.free.OR12, anno.free.OR15, anno.free.OR16, anno.free.OR18, anno.free.OR22, anno.free.OR23, anno.free.OR24, anno.free.OR27, anno.free.OR37, anno.free.OR40, anno.free.OR52, anno.free.OR55, anno.free.OR57, anno.free.OR58, anno.free.OR60, anno.free.OR61, anno.free.OR62, anno.free.OR63, anno.free.OR64, anno.free.OR65, anno.free.OR66, anno.free.OR67, anno.free.OR68, anno.free.OR69, anno.free.OR70, anno.free.OR74, anno.free.OR75, anno.free.OR76, anno.free.OR80, anno.free.OR87, anno.free.OR91, anno.free.OR92, anno.free.OR97, anno.free.OR98, anno.free.OR99)
+
+anno.free$PpyrOR <- factor(anno.free$PpyrOR, levels = c("Ppyr/Orco", "PpyrOR6", "PpyrOR11", "PpyrOR12", "PpyrOR15", "PpyrOR16", "PpyrOR18", "PpyrOR22", "PpyrOR23", "PpyrOR24", "PpyrOR27",  "PpyrOR37", "PpyrOR40", "PpyrOR52", "PpyrOR55PSE", "PpyrOR57", "PpyrOR58PSE", "PpyrOR60", "PpyrOR61", "PpyrOR62", "PpyrOR63", "PpyrOR64", "PpyrOR65", "PpyrOR66", "PpyrOR67", "PpyrOR68", "PpyrOR69", "PpyrOR70", "PpyrOR74", "PpyrOR75", "PpyrOR76", "PpyrOR80", "PpyrOR87", "PpyrOR91", "PpyrOR92", "PpyrOR97", "PpyrOR98", "PpyrOR99"))
+
+                   
+boxplots.free <-ggplot(df, aes(x = interaction(Sex, Tissue), y = Expression)) +
+  geom_boxplot(aes(color = Sex), outlier.shape = NA) + #outlier.size = 0.5
+  geom_jitter(size = 0.5, color = "black") +
+  facet_wrap2(~ PpyrOR, ncol = 5, strip = strip, scales = "free_y") +
+  guides(x = "axis_nested") +
+#  scale_fill_manual(values = c("#4E79A7", "#F28E2B")) + #colors: "#F28E2B", "#989ca3", "#4E79A7" ; grayscale:"#636363", "#f0f0f0"
+  scale_color_manual(values = c("#4E79A7", "#F28E2B")) + #colors: "#F28E2B", "#989ca3", "#4E79A7" ; grayscale:"#636363", "#f0f0f0"
+ # ylim(c(8,14.8)) +
+  ylab("Normalized counts") +
+  xlab("Sample") +
+  guides(color = "none") +
+  geom_text(data = anno.free, aes(x = xstar,  y = ystar, label = lab)) +
+  geom_segment(data = anno.free, aes(x = x1, xend = x1, 
+           y = y1, yend = y2),
+           colour = "black") +
+  geom_segment(data = anno.free, aes(x = x2, xend = x2, 
+           y = y1, yend = y2),
+           colour = "black") +
+  geom_segment(data = anno.free, aes(x = x1, xend = x2, 
+           y = y2, yend = y2),
+           colour = "black") +
+  xlab(element_blank())
+
+boxplots.free
+
+#ggsave("2025_02_25_boxplots_free.svg", plot = boxplots.free, device = "svg", width = 170, height = 220, dpi = 300, units = "mm")
+
+```
+
+```{r defining annotations y-lim}
+
+#ylim
+
+anno.Orco <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("Ppyr/Orco", "Ppyr/Orco"))
+
+
+anno.OR6 <- data.frame(x1 = c(1, 1, 2), 
+                   x2 = c(3, 2, 4), 
+                   y1 = c(14.2, 13.5, 12.9), 
+                   y2 = c(14.5, 13.8, 13), 
+                   xstar = c(2, 1.5, 3), 
+                   ystar = c(14.6, 13.9, 13.1), 
+                   lab = c("*", "*", "*"),
+                   PpyrOR = c("PpyrOR6", "PpyrOR6", "PpyrOR6"))
+
+anno.OR11 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR11", "PpyrOR11"))
+
+anno.OR12 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                    PpyrOR = c("PpyrOR12", "PpyrOR12"))
+
+anno.OR15 <- data.frame(x1 = c(2), 
+                   x2 = c(4), 
+                   y1 = c(14.2), 
+                   y2 = c(14.5), 
+                   xstar = c(3), 
+                   ystar = c(14.6), 
+                   lab = c("*"),
+                   PpyrOR = c("PpyrOR15"))
+
+anno.OR16 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR16", "PpyrOR16"))
+
+anno.OR18 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR18", "PpyrOR18"))
+
+anno.OR22 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR22", "PpyrOR22"))
+
+anno.OR23 <- data.frame(x1 = c(2), 
+                   x2 = c(4), 
+                   y1 = c(14.2), 
+                   y2 = c(14.5), 
+                   xstar = c(3), 
+                   ystar = c(14.6), 
+                   lab = c("*"),
+                   PpyrOR = c("PpyrOR23PSE"))
+
+anno.OR24 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR24", "PpyrOR24"))
+
+anno.OR37 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR37", "PpyrOR37"))
+
+anno.OR40 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR40", "PpyrOR40"))
+
+anno.OR52 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR52", "PpyrOR52"))
+
+anno.OR55 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR55PSE", "PpyrOR55PSE"))
+
+anno.OR57 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR57", "PpyrOR57"))
+
+anno.OR58 <- data.frame(x1 = c(2), 
+                   x2 = c(4), 
+                   y1 = c(14.2), 
+                   y2 = c(14.5), 
+                   xstar = c(3), 
+                   ystar = c(14.6), 
+                   lab = c("*"),
+                   PpyrOR = c("PpyrOR58PSE"))
+
+anno.OR60 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR60", "PpyrOR60"))
+
+anno.OR61 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR61", "PpyrOR61"))
+
+anno.OR62 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR62", "PpyrOR62"))
+
+anno.OR63 <- data.frame(x1 = c(2), 
+                   x2 = c(4), 
+                   y1 = c(14.2), 
+                   y2 = c(14.5), 
+                   xstar = c(3), 
+                   ystar = c(14.6), 
+                   lab = c("*"),
+                   PpyrOR = c("PpyrOR63"))
+
+anno.OR64 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR64", "PpyrOR64"))
+
+anno.OR65 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR65", "PpyrOR65"))
+
+anno.OR66 <- data.frame(x1 = c(1), 
+                   x2 = c(3), 
+                   y1 = c(14.2), 
+                   y2 = c(14.5), 
+                   xstar = c(2), 
+                   ystar = c(14.6), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR66"))
+
+anno.OR67 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR67", "PpyrOR67"))
+
+anno.OR68 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR68", "PpyrOR68"))
+
+anno.OR69 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR69", "PpyrOR69"))
+
+anno.OR70 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR70", "PpyrOR70"))
+
+anno.OR74 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR74", "PpyrOR74"))
+
+anno.OR75 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR75", "PpyrOR75"))
+
+anno.OR76 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR76", "PpyrOR76"))
+
+anno.OR80 <- data.frame(x1 = c(2), 
+                   x2 = c(4), 
+                   y1 = c(14.2), 
+                   y2 = c(14.5), 
+                   xstar = c(3), 
+                   ystar = c(14.6), 
+                   lab = c("*"),
+                   PpyrOR = c("PpyrOR80"))
+
+anno.OR87 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR87", "PpyrOR87"))
+
+anno.OR92 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR92", "PpyrOR92"))
+
+anno.OR97 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR97", "PpyrOR97"))
+
+anno.OR98 <- data.frame(x1 = c(1, 2), 
+                   x2 = c(3, 4), 
+                   y1 = c(14.2, 13.5), 
+                   y2 = c(14.5, 13.8), 
+                   xstar = c(2, 3), 
+                   ystar = c(14.6, 13.9), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR98", "PpyrOR98"))
+
+anno.OR99 <- data.frame(x1 = c(1), 
+                   x2 = c(3), 
+                   y1 = c(14.2), 
+                   y2 = c(14.5), 
+                   xstar = c(2), 
+                   ystar = c(14.6), 
+                   lab = c("*", "*"),
+                   PpyrOR = c("PpyrOR99"))
+
+anno.ylim <- rbind(anno.Orco, anno.OR6, anno.OR11, anno.OR12, anno.OR15, anno.OR16, anno.OR18, anno.OR22, anno.OR23, anno.OR24, anno.OR37, anno.OR40, anno.OR52, anno.OR55, anno.OR57, anno.OR58, anno.OR60, anno.OR61, anno.OR62, anno.OR63, anno.OR64, anno.OR66, anno.OR66, anno.OR67, anno.OR68, anno.OR69, anno.OR70, anno.OR74, anno.OR75, anno.OR76, anno.OR80, anno.OR87, anno.OR92, anno.OR97, anno.OR98, anno.OR99)
+
+anno.ylim$PpyrOR <- factor(anno.ylim$PpyrOR, levels = c("Ppyr/Orco", "PpyrOR6", "PpyrOR11", "PpyrOR12", "PpyrOR15", "PpyrOR16", "PpyrOR18", "PpyrOR22", "PpyrOR23", "PpyrOR24",  "PpyrOR37", "PpyrOR40", "PpyrOR52", "PpyrOR55PSE", "PpyrOR57", "PpyrOR58PSE", "PpyrOR60", "PpyrOR61", "PpyrOR62", "PpyrOR63", "PpyrOR64", "PpyrOR65", "PpyrOR66", "PpyrOR67", "PpyrOR68", "PpyrOR69", "PpyrOR70", "PpyrOR74", "PpyrOR75", "PpyrOR76", "PpyrOR80", "PpyrOR87", "PpyrOR92", "PpyrOR97", "PpyrOR98", "PpyrOR99"))
+```
+
+
+```{r ylim boxplots, include=FALSE}
+ggplot(df, aes(x = interaction(Sex, Tissue), y = Expression)) +
+  geom_boxplot(aes(color = Sex), outlier.shape = NA) + #outlier.size = 0.5
+  geom_jitter(size = 0.5, color = "black") +
+  facet_wrap2(~ PpyrOR, ncol = 4, strip = strip, scales = "free_y") +
+  guides(x = "axis_nested") +
+#  scale_fill_manual(values = c("#4E79A7", "#F28E2B")) + #colors: "#F28E2B", "#989ca3", "#4E79A7" ; grayscale:"#636363", "#f0f0f0"
+  scale_color_manual(values = c("#4E79A7", "#F28E2B")) + #colors: "#F28E2B", "#989ca3", "#4E79A7" ; grayscale:"#636363", "#f0f0f0"
+  ylim(c(8,14.8)) +
+  ylab("Normalized counts") +
+  xlab("Sample") +
+  guides(color = "none") +
+  geom_text(data = anno.ylim, aes(x = xstar,  y = ystar, label = lab)) +
+  geom_segment(data = anno.ylim, aes(x = x1, xend = x1, 
+           y = y1, yend = y2),
+           colour = "black") +
+  geom_segment(data = anno.ylim, aes(x = x2, xend = x2, 
+           y = y1, yend = y2),
+           colour = "black") +
+  geom_segment(data = anno.ylim, aes(x = x1, xend = x2, 
+           y = y2, yend = y2),
+           colour = "black") +
+  xlab(element_blank())
+```
+
+  + \* = p < 0.05
+  + blue = male, orange = female
+  + black jittered points = values for each sample
+  + shading of heading means significantly DE in male antennae vs legs (dark gray), female antennae v. legs (light gray), or both (medium gray)
+  + bold outline means significantly DE in male vs female antennae
+  
+#### Barplot
+```{r barplot, fig.width = 8, fig.height = 14}
+DE.ORs.idx.bar.AVG <- all.DE.ORs.idx %>% 
+  select(PpyrOR, ends_with("AVG"), -antenna.AVG, -leg.AVG) %>%
+  pivot_longer(-PpyrOR, 
+               names_to = "Sample",
+               values_to = "Expression")
+
+DE.ORs.idx.bar.SD <- all.DE.ORs.idx %>% 
+  select(PpyrOR, ends_with("SD"), -antenna.SD, -leg.SD) %>%
+  pivot_longer(-PpyrOR, 
+               names_to = "Sample",
+               values_to = "SD")
+
+
+DE.ORs.idx.bar <- DE.ORs.idx.bar.AVG %>% left_join(DE.ORs.idx.bar.SD, by = "PpyrOR", relationship = "many-to-many")
+
+DE.ORs.idx.bar$Sample.x <- factor(DE.ORs.idx.bar$Sample.x, levels= c("male.ant.AVG", "female.ant.AVG", "male.leg.AVG", "female.leg.AVG"))
+
+DE.ORs.idx.bar$Sample.y <- factor(DE.ORs.idx.bar$Sample.y, levels= c("male.ant.SD", "female.ant.SD", "male.leg.SD", "female.leg.SD"))
+
+DE.ORs.idx.bar <- DE.ORs.idx.bar %>% mutate(Sex = case_when(Sample.x == "male.ant.AVG" ~ "M",
+                                                            Sample.x == "male.leg.AVG" ~ "M",
+                                                            Sample.x == "female.ant.AVG" ~ "F",
+                                                            Sample.x == "female.leg.AVG" ~ "F",
+                                                            TRUE ~ "not yet"))
+DE.ORs.idx.bar <- DE.ORs.idx.bar %>% mutate(Tissue = case_when(Sample.x == "male.ant.AVG" ~ "antenna",
+                                                            Sample.x == "male.leg.AVG" ~ "leg",
+                                                            Sample.x == "female.ant.AVG" ~ "antenna",
+                                                            Sample.x == "female.leg.AVG" ~ "leg",
+                                                            TRUE ~ "not yet"))
+
+ggplot(DE.ORs.idx.bar, aes(x = Sample.x, y = Expression)) +
+  theme_classic() +
+  geom_bar_pattern(aes(fill = Sex, pattern = Tissue), position = position_dodge(preserve = "single"),
+                   color = "black", 
+                   pattern_fill = "black",
+                   pattern_angle = 30,
+                   pattern_density = 0.1,
+                   pattern_spacing = 0.025,
+                   pattern_key_scale_factor = 0.6,
+                   stat = "summary",
+                   fun = "mean") + 
+  geom_errorbar(aes(ymin = Expression - SD, ymax = Expression + SD), width = 0.1) +
+  facet_wrap(~factor(PpyrOR, levels = c("Ppyr/Orco", "PpyrOR6", "PpyrOR11", "PpyrOR12", "PpyrOR15", "PpyrOR16", "PpyrOR18", "PpyrOR22", "PpyrOR23PSE", "PpyrOR24",  "PpyrOR37", "PpyrOR40", "PpyrOR52", "PpyrOR55PSE", "PpyrOR57", "PpyrOR58PSE", "PpyrOR60", "PpyrOR61", "PpyrOR62", "PpyrOR63", "PpyrOR64", "PpyrOR65", "PpyrOR66", "PpyrOR67", "PpyrOR68", "PpyrOR69", "PpyrOR70", "PpyrOR74", "PpyrOR75", "PpyrOR76", "PpyrOR80", "PpyrOR87", "PpyrOR92", "PpyrOR97", "PpyrOR98", "PpyrOR99")), ncol = 4) + 
+  xlab(element_blank()) +
+  ylab(label = "Normalized counts") +
+  scale_pattern_manual(values = c(antenna = "stripe", leg = "none")) +
+  guides(pattern = guide_legend(override.aes = list(fill = "white")),
+         fill = guide_legend(override.aes = list(pattern = "none"))) +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank(), legend.position = "bottom") +
+  scale_fill_manual(values = c("#F28E2B", "#4E79A7")) +
+  geom_text(data = anno.ylim, aes(x = xstar,  y = ystar, label = lab)) +
+  geom_segment(data = anno.ylim, aes(x = x1, xend = x1, 
+           y = y1, yend = y2),
+           colour = "black") +
+  geom_segment(data = anno.ylim, aes(x = x2, xend = x2, 
+           y = y1, yend = y2),
+           colour = "black") +
+  geom_segment(data = anno.ylim, aes(x = x1, xend = x2, 
+           y = y2, yend = y2),
+           colour = "black")
+```
+ 
+
+#### Fold-change on linkage groups
+```{r FC on LGs}
+#read in data file with this info
+my.LG.data <- read.table("./bigger_OR_tibble_2025_1_15.txt", sep = "\t", header = TRUE)
+
+#extract just one total length entry per OR
+only.totals.tib <- my.LG.data %>% filter(Feature_title == "Total length")
+#length(only.totals.tib$OR) #101
+
+#make orco name compatible
+#length(unique(my.DE.data.df.expanded$PpyrOR)) #46 - the ones that passed filtering
+my.DE.data.df.expanded$PpyrOR <- gsub("Ppyr\\/Orco", "Ppyr\\\\Orco", my.DE.data.df.expanded$PpyrOR)
+
+#join with expression dataframe
+my.joined.tib <- left_join(only.totals.tib, my.DE.data.df.expanded, by = join_by(OR == PpyrOR))
+
+#factor appropriately
+my.joined.tib$OR_GROUP <- factor(my.joined.tib$OR_GROUP, levels = c("Orco", "OR1", "2A", "2B", "3", "4", "6"))
+
+my.joined.tib$LG_common_name <- factor(my.joined.tib$LG_common_name, levels = c("LG1", "LG2", "LG3a (X)", "LG3b", "LG4", "LG5", "LG6", "LG7", "LG8", "LG9", "LG10"))
+
+#my.joined.tib$suffix
+my.joined.tib$suffix <-  factor(my.joined.tib$suffix, levels = c("", "NTE", "PSE", "NC"), labels = c("Full length", "Partial", "PSE", "Partial"))
+
+#plot of LGs
+#define option for non-scientific axis notation
+options(scipen = 999)
+
+#make tibble of LGs and format it (factor LGs)
+LG_tibble <- tibble(LG_common_name = levels(my.joined.tib$LG_common_name), LG_length = c(70905644, 53657282, 22220000, 28664792, 50607672, 49173113, 47017841, 43653355, 37158542, 24427974, 20869423))
+
+LG_tibble$LG_common_name <- factor(LG_tibble$LG_common_name, levels(my.joined.tib$LG_common_name))
+
+my.joined.tib$DE_mant_v_mleg <- factor(my.joined.tib$DE_mant_v_mleg, levels = c("Significant", "Not significant", "NA"))
+
+my.joined.tib$DE_fant_v_fleg <- factor(my.joined.tib$DE_fant_v_fleg, levels = c("Significant", "Not significant", "NA"))
+
+my.joined.tib$DE_mant_v_fant <- factor(my.joined.tib$DE_mant_v_fant, levels = c("Significant", "Not significant", "NA"))
+
+my.joined.tib$DE_mleg_v_fleg <- factor(my.joined.tib$DE_mleg_v_fleg, levels = c("Significant", "Not significant", "NA"))
+
+my.joined.tib$Estimate_mant_v_mleg <- as.numeric(my.joined.tib$Estimate_mant_v_mleg)
+
+my.joined.tib$Estimate_fant_v_fleg <- as.numeric(my.joined.tib$Estimate_fant_v_fleg)
+
+my.joined.tib$Estimate_mant_v_fant <- as.numeric(my.joined.tib$Estimate_mant_v_fant)
+
+my.joined.tib$Estimate_mleg_v_fleg <- as.numeric(my.joined.tib$Estimate_mleg_v_fleg)
+
+library(scales)
+
+#plot LG position
+test <- my.joined.tib %>% select(OR, LG_common_name, converted_midpoint, Estimate_mant_v_mleg, Estimate_fant_v_fleg, Estimate_mant_v_fant, Estimate_mleg_v_fleg, DE_mant_v_mleg, DE_fant_v_fleg, DE_mant_v_fant, DE_mleg_v_fleg) %>%
+  pivot_longer(
+    cols = starts_with("Estimate") | starts_with("DE"),
+    cols_vary = "slowest",
+    names_to = c(".value", "Comparison"),
+    names_pattern = "(.+)_(...._v_....)")
+
+#ggplot(LG_tibble, aes(x = LG_common_name, y = LG_length)) +
+#  geom_bar(stat = "identity", color = "black", fill = "white") +
+#  theme_classic() +
+#  coord_flip() +
+#  scale_x_discrete(limits = rev) +
+#  scale_y_continuous(labels = scales::comma) +
+# ylab("Length (bp)") +
+#    theme(axis.title.y = element_blank()) +
+#  geom_point(data = test, aes(x = LG_common_name, y = converted_midpoint, fill = Estimate, color = DE, size = DE), shape = 21, alpha = 0.7, position = position_jitter(set.seed(42))) +
+#  scale_fill_viridis_c(limits = c(0, 1.5), oob = squish, name = bquote(~log[2]~"FC"), na.value = "NA", labels = c("-0.7", "0.5", "1.0", "\u2265 1.5")) +
+#  scale_color_manual(values = c("black", "NA"), na.value = "gray48") +
+#  scale_size_manual(values = c(2, 2), na.value = 0.5) +
+#  facet_wrap(~ Comparison)
+
+ggplot(LG_tibble, aes(x = LG_common_name, y = LG_length)) +
+  geom_bar(stat = "identity", color = "black", fill = "white") +
+  theme_classic() +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  scale_y_continuous(labels = scales::comma) +
+  ylab("Length (bp)") +
+    theme(axis.title.y = element_blank()) +
+    geom_point(data = my.joined.tib, aes(x = LG_common_name, y = converted_midpoint, fill = Estimate_mant_v_mleg, color = DE_mant_v_mleg, size = DE_mant_v_mleg), shape = 21, alpha = 0.7, position = position_jitter(set.seed(20))) +
+#  geom_jitter(data = my.joined.tib, aes(x = LG_common_name, y = converted_midpoint, fill = Estimate_mant_v_mleg, color = DE_mant_v_mleg, size = DE_mant_v_mleg), width = 0.4, height = 0, shape = 21, alpha = 0.7) +
+  scale_fill_viridis_c(limits = c(0, 1.5), oob = squish, name = bquote(~log[2]~"FC"), na.value = "NA", labels = c("-0.7", "0.5", "1.0", "\u2265 1.5")) +
+  scale_color_manual(values = c("black", "gray48"), na.value = "gray70", name = "", labels = c("adj p \u003c 0.05", "adj p \u2265 0.05", "failed filtering")) +
+  scale_size_manual(values = c(2, 1), na.value = 0.5, name = "", labels = c("adj p \u003c 0.05", "adj p \u2265 0.05", "failed filtering")) +
+#  theme(legend.position = "none") +
+    force_panelsizes(rows = unit(85, "mm"),
+                   cols = unit(85, "mm"))
+
+#ggsave("Mant_v_mleg_expression_no_legend_on_LG_2025_02_24.svg", device = "svg")
+  
+ggplot(LG_tibble, aes(x = LG_common_name, y = LG_length)) +
+  geom_bar(stat = "identity", color = "black", fill = "white") +
+  theme_classic() +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  scale_y_continuous(labels = scales::comma) +
+  ylab("Length (bp)") +
+    theme(axis.title.y = element_blank()) +
+    geom_point(data = my.joined.tib, aes(x = LG_common_name, y = converted_midpoint, fill = Estimate_fant_v_fleg, color = DE_fant_v_fleg, size = DE_fant_v_fleg), shape = 21, alpha = 0.7, position = position_jitter(set.seed(20))) +
+#  geom_jitter(data = my.joined.tib, aes(x = LG_common_name, y = converted_midpoint, fill = Estimate_fant_v_fleg), size =2 , width = 0.4, height = 0, shape = 21, alpha = 0.6) +
+  scale_fill_viridis_c(limits = c(0, 1.5), oob = squish, name = bquote(~log[2]~"FC Female antennae v legs"), na.value = "NA", labels = c("-0.7", "0.5", "1.0", "\u2265 1.5")) +
+  theme(legend.position = "none") +
+  scale_color_manual(values = c("black", "gray48"), na.value = "gray70") +
+  scale_size_manual(values = c(2, 1), na.value = 0.5) +
+    force_panelsizes(rows = unit(85, "mm"),
+                   cols = unit(85, "mm"))
+
+#ggsave("Fant_v_fleg_expression_on_LG_2025_02_25.svg", device = "svg")
+
+ggplot(LG_tibble, aes(x = LG_common_name, y = LG_length)) +
+  geom_bar(stat = "identity", color = "black", fill = "white") +
+  theme_classic() +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  scale_y_continuous(labels = scales::comma) +
+  ylab("Length (bp)") +
+    theme(axis.title.y = element_blank()) +
+   geom_point(data = my.joined.tib, aes(x = LG_common_name, y = converted_midpoint, fill = Estimate_mant_v_fant, color = DE_mant_v_fant, size = DE_mant_v_fant), shape = 21, alpha = 0.7, position = position_jitter(set.seed(20))) +
+#  geom_jitter(data = my.joined.tib, aes(x = LG_common_name, y = converted_midpoint, fill = Estimate_mant_v_fant), size =2 , width = 0.4, height = 0, shape = 21, alpha = 0.6) +
+  scale_fill_viridis_c(limits = c(0, 1.5), oob = squish, name = bquote(~log[2]~"FC Male v female antennae"), na.value = "NA", labels = c("-0.7", "0.5", "1.0", "\u2265 1.5")) +
+  theme(legend.position = "none") +
+  scale_color_manual(values = c("black", "gray48"), na.value = "gray70") +
+  scale_size_manual(values = c(2, 1), na.value = 0.5) +
+    force_panelsizes(rows = unit(85, "mm"),
+                   cols = unit(85, "mm"))
+
+#ggsave("Mant_v_fant_expression_on_LG_2025_02_25.svg", device = "svg")
+
+ggplot(LG_tibble, aes(x = LG_common_name, y = LG_length)) +
+  geom_bar(stat = "identity", color = "black", fill = "white") +
+  theme_classic() +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  scale_y_continuous(labels = scales::comma) +
+  ylab("Length (bp)") +
+    theme(axis.title.y = element_blank()) +
+  geom_point(data = my.joined.tib, aes(x = LG_common_name, y = converted_midpoint, fill = Estimate_mleg_v_fleg, color = DE_mleg_v_fleg, size = DE_mleg_v_fleg), shape = 21, alpha = 0.7, position = position_jitter(set.seed(20))) +
+#geom_jitter(data = my.joined.tib, aes(x = LG_common_name, y = converted_midpoint, fill = Estimate_mleg_v_fleg), size =2 , width = 0.4, height = 0, shape = 21, alpha = 0.6) +
+  scale_fill_viridis_c(limits = c(0, 1.5), oob = squish, name = bquote(~log[2]~"FC Male v female legs"), na.value = "NA", labels = c("-0.7", "0.5", "1.0", "\u2265 1.5")) +
+  theme(legend.position = "none") +
+  scale_color_manual(values = c("black", "gray48"), na.value = "gray70") +
+  scale_size_manual(values = c(2, 1), na.value = 0.5) +
+    force_panelsizes(rows = unit(85, "mm"),
+                   cols = unit(85, "mm"))
+
+#ggsave("Mleg_v_fleg_expression_on_LG_2025_02_25.svg", device = "svg")
+#for some reason, jittering changes when you assign the plot to a variable (like the set.seed doesn't work - so saved individually and combined in adobe)
+```
+
+#### Expression on linkage groups
+```{r expression on LGs}
+
+#plot of LGs
+#define option for non-scientific axis notation
+options(scipen = 999)
+
+#extract data for expression
+expression_on_LGs.df <- my.joined.tib %>% select(OR, LG_common_name, converted_midpoint, male.ant.AVG, female.ant.AVG, male.leg.AVG, female.leg.AVG, DE_mant_v_mleg, DE_fant_v_fleg, DE_mant_v_fant, DE_mleg_v_fleg) %>%
+  pivot_longer(
+    cols = ends_with("AVG"),
+    cols_vary = "slowest", names_to = "Tissue", values_to = "Expression")
+
+
+expression_on_LGs.df$Tissue <- factor(expression_on_LGs.df$Tissue, levels = c("male.ant.AVG", "female.ant.AVG", "male.leg.AVG", "female.leg.AVG"), labels = c("Male antennae", "Female antennae", "Male leg", "Female leg"))
+
+expression_on_LGs.df$filtered <- "PASS"
+expression_on_LGs.df$filtered[which(is.na(expression_on_LGs.df$Expression))] <- "FAIL"
+expression_on_LGs.df$filtered <- factor(expression_on_LGs.df$filtered, levels = c("PASS", "FAIL"), labels = c("", "Filtered out"))
+
+library(scales)
+#plot LG position
+
+ggplot(LG_tibble, aes(x = LG_common_name, y = LG_length)) +
+  geom_bar(stat = "identity", color = "black", fill = "white") +
+  theme_classic() +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  scale_y_continuous(labels = scales::comma) +
+  ylab("Length (bp)") +
+  theme(axis.title.y = element_blank()) +
+  geom_point(data = expression_on_LGs.df %>% filter(Tissue == "Male antennae") %>% select(OR, LG_common_name, converted_midpoint, Expression, filtered), aes(x = LG_common_name, y = converted_midpoint, fill = Expression, size = filtered), shape = 21, alpha = 0.7, position = position_jitter(set.seed(20))) +
+  scale_fill_viridis_c(limits = c(8.3, 11), oob = squish, name = bquote("Normalized counts"), na.value = "NA", , labels = c("8.5", "9.0", "9.5", "10.0", "10.5", "\u2265 11.0")) +
+  scale_size_manual(values = c(2, 0.5), name = "", labels = c("Passed filtering", "Failed filtering")) +
+    force_panelsizes(rows = unit(85, "mm"),
+                   cols = unit(85, "mm"))
+
+#ggsave("Male_ant_norm_counts_on_LG_2025_02_25.svg", device = "svg")
+  
+ggplot(LG_tibble, aes(x = LG_common_name, y = LG_length)) +
+  geom_bar(stat = "identity", color = "black", fill = "white") +
+  theme_classic() +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  scale_y_continuous(labels = scales::comma) +
+  ylab("Length (bp)") +
+  theme(axis.title.y = element_blank()) +
+  geom_point(data = expression_on_LGs.df %>% filter(Tissue == "Female antennae") %>% select(OR, LG_common_name, converted_midpoint, Expression, filtered), aes(x = LG_common_name, y = converted_midpoint, fill = Expression, size = filtered), shape = 21, alpha = 0.7, position = position_jitter(set.seed(20))) +
+  scale_fill_viridis_c(limits = c(8.3, 11), oob = squish, name = bquote("Normalized counts"), na.value = "NA", , labels = c("8.5", "9.0", "9.5", "10.0", "10.5", "\u2265 11.0")) +
+  scale_size_manual(values = c(2, 0.5), name = "", labels = c("Passed filtering", "Failed filtering")) +
+  theme(legend.position = "none") +
+  force_panelsizes(rows = unit(85, "mm"),
+                   cols = unit(85, "mm"))
+
+#ggsave("Female_ant_norm_counts_on_LG_2025_02_25.svg", device = "svg")
+
+ggplot(LG_tibble, aes(x = LG_common_name, y = LG_length)) +
+  geom_bar(stat = "identity", color = "black", fill = "white") +
+  theme_classic() +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  scale_y_continuous(labels = scales::comma) +
+  ylab("Length (bp)") +
+  theme(axis.title.y = element_blank()) +
+  geom_point(data = expression_on_LGs.df %>% filter(Tissue == "Male leg") %>% select(OR, LG_common_name, converted_midpoint, Expression, filtered), aes(x = LG_common_name, y = converted_midpoint, fill = Expression, size = filtered), shape = 21, alpha = 0.7, position = position_jitter(set.seed(20))) +
+  scale_fill_viridis_c(limits = c(8.3, 11), oob = squish, name = bquote("Normalized counts"), na.value = "NA", , labels = c("8.5", "9.0", "9.5", "10.0", "10.5", "\u2265 11.0")) +
+  scale_size_manual(values = c(2, 0.5), name = "", labels = c("Passed filtering", "Failed filtering")) +
+  theme(legend.position = "none") +
+  force_panelsizes(rows = unit(85, "mm"),
+                   cols = unit(85, "mm"))
+
+#ggsave("Male_leg_norm_counts_on_LG_2025_02_25.svg", device = "svg")
+
+ggplot(LG_tibble, aes(x = LG_common_name, y = LG_length)) +
+  geom_bar(stat = "identity", color = "black", fill = "white") +
+  theme_classic() +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  scale_y_continuous(labels = scales::comma) +
+  ylab("Length (bp)") +
+  theme(axis.title.y = element_blank()) +
+  geom_point(data = expression_on_LGs.df %>% filter(Tissue == "Female leg") %>% select(OR, LG_common_name, converted_midpoint, Expression, filtered), aes(x = LG_common_name, y = converted_midpoint, fill = Expression, size = filtered), shape = 21, alpha = 0.7, position = position_jitter(set.seed(20))) +
+  scale_fill_viridis_c(limits = c(8.3, 11), oob = squish, name = bquote("Normalized counts"), na.value = "NA", , labels = c("8.5", "9.0", "9.5", "10.0", "10.5", "\u2265 11.0")) +
+  scale_size_manual(values = c(2, 0.5), name = "", labels = c("Passed filtering", "Failed filtering")) +
+  theme(legend.position = "none") +
+  force_panelsizes(rows = unit(85, "mm"),
+                   cols = unit(85, "mm"))
+
+#ggsave("Female_leg_norm_counts_on_LG_2025_02_25.svg", device = "svg")
+#for some reason, jittering changes when you assign the plot to a variable (like the set.seed doesn't work - so saved individually and combined in adobe)
+```
+
+
+#### Expression on phylogeny
+```{r exp on phylo}
+#load tree
+#read in tree
+tree <- read.tree("./run_44.contree.newick")
+
+#trim tree
+#get the data from the tree
+t_data <- as_tibble(tree)
+
+#rename PpyrOR8
+t_data <- t_data %>% mutate(label2 = label)
+t_data$label2[which(t_data$label == "PpyrOR8b")] <- "PpyrOR8"
+
+tree.rename <- rename_taxa(tree, t_data, label, label2)
+t.rename_data <- as_tibble(tree.rename)
+
+#just get the total OR info, 1 per OR, only firefly
+only_totals <- my.joined.tib %>% 
+  filter(feature == "total") %>%
+  filter(SPECIES == "Photinus pyralis")
+
+#join the data
+t_data <- left_join(t.rename_data, only_totals, by = join_by(label == OR_NAME))
+
+#drop tips that are not Ppyr
+to_drop <- which(is.na(t_data$LG))
+tree_reduced <- drop.tip(tree.rename, to_drop)
+
+#check tree looks good
+#ggtree(tree_reduced) + geom_tiplab(size = 2) #good
+
+#get reduced tree data
+tr_data <- as_tibble(tree_reduced)
+
+#add in OR info
+tr_data <- left_join(tr_data, only_totals, by = join_by(label == OR_NAME))
+
+tr_data$OR <- factor(tr_data$OR, levels = tr_data$OR)
+
+tr_data$OR_GROUP <- factor(tr_data$OR_GROUP, levels = c("Orco", "OR1", "2A", "2B", "3", "4", "6")) 
+
+tr_data$LG_common_name <- factor(tr_data$LG_common_name, levels = c("LG1", "LG2", "LG3a (X)", "LG3b", "LG4", "LG5", "LG6", "LG7", "LG8", "LG9", "LG10"))
+
+expression.tibble <- tr_data %>% select(parent, node, branch.length, label, male.ant.AVG, female.ant.AVG, male.leg.AVG, female.leg.AVG)
+
+expression.tibble.longer <- expression.tibble %>% pivot_longer(ends_with("AVG"), names_to = "Sex x Tissue", values_to = "Normalized counts")
+
+expression.tibble.longer <- expression.tibble.longer %>% mutate(Sex = ifelse(str_detect(`Sex x Tissue`, "female"), "Female", "Male"),
+                                                                             Tissue = ifelse(str_detect(`Sex x Tissue`, "ant"), "Antennae", "Legs"))
+  
+expression.tibble.longer$Sex <- factor(expression.tibble.longer$Sex, levels = c("Male", "Female"), labels = c("M", "F"))
+
+expression.tibble.longer$Tissue <- factor(expression.tibble.longer$Tissue, levels = c("Antennae", "Legs"))
+
+#orient tree
+#attach expression data
+#plot - can I have a series of circles @ end with expression values instead of 4 different trees? Or a heatmap?
+library(aplot)
+
+p <- ggtree(tree_reduced) %<+% tr_data
+
+#add tip labels, group designations (color), and node labels to see which nodes to flip
+#p + geom_tiplab(size = 2) + 
+#  geom_tippoint(aes(fill = OR_GROUP), color = "black", shape = 21, size = 2) +
+#  geom_text(aes(label = node), size = 2, vjust = -1, hjust = 1.2)
+#  scale_fill_manual(values = c("#4E79A7","#E15759", "#B6992D", "#F28E2B", "#B07AA1", "#59A14F", "#797067"))
+
+#flip the 2B node to be next to 2A for ease of visualization
+p2 <- flip(p, 123, 106)
+
+#plot flipped tree with labels and colors to check 
+p2 + 
+  geom_tiplab(size = 2, hjust = -0.1) + 
+  geom_text(aes(label = node), size = 2, vjust = -1, hjust = 1.2) +
+  geom_tippoint(aes(color = OR_GROUP),  size = 1.5, alpha = 0.9)# +
+#  scale_color_manual(values = c("#4E79A7","#E15759", "#B6992D", "#F28E2B", "#B07AA1", "#59A14F", "#797067")) +
+#  theme(legend.position = "right") +
+# xlim(0,10) +
+#  ylim(0, 101)
+
+z<-p2 +
+  geom_tiplab(align=TRUE, color = "white") + hexpand(0.15) + xlim(0,10) + 
+  geom_cladelab(node=196, label="2A", align = TRUE, offset=0.9, barsize=1, fontsize=7) +
+geom_cladelab(node=123, label="2B", align = TRUE, offset=0.9, barsize=1, fontsize=7) + 
+  geom_cladelab(node=108, label="3", align = TRUE, offset=0.9, barsize=1, fontsize=7) +
+  geom_cladelab(node=114, label="4", align = TRUE, offset=0.9, barsize=1, fontsize=7) +
+  geom_cladelab(node=119, label="6", align = TRUE, offset=0.9, barsize=1, fontsize=7) +
+  geom_strip("PpyrOR1", "PpyrOR1", label="OR1", align = TRUE, offset=-1.0, barsize=1, fontsize=3) +
+  annotate("segment", x = 3.45, y = 8.7, xend = 4.2, yend = 8.7, color = "gray48", lty = "1111", linewidth = 0.5)
+
+z2 <- ggplot(expression.tibble.longer, aes(x = interaction(Sex, Tissue), y = label)) +
+  geom_tile(aes(fill = `Normalized counts`), na.rm = TRUE) + 
+  scale_fill_viridis_c(limits = c(8.3, 11), oob = squish, name = bquote("Normalized counts"), na.value = "NA", labels = c("8.5", "9.0", "9.5", "10.0", "10.5", "\u2265 11.0")) + 
+  theme_classic() + 
+  xlab(NULL) + 
+  ylab(NULL) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  guides(x = "axis_nested")
+#+
+#  force_panelsizes(rows = unit(85, "mm"),
+#                   cols = unit(45, "mm"))
+
+
+
+z2 %>% insert_left(z)
+
+#ggsave("Expression_on_phylo_2025_02_25.svg", device = "svg")
+```
+
+-----
+
+# Session information
+```{r session information}
+sessionInfo()
+```
